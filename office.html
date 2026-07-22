@@ -36,7 +36,6 @@ th { background: rgba(15, 23, 42, 0.9); padding:16px; text-align:left; font-size
 td { padding:16px; border-bottom:1px solid rgba(255,255,255,0.05); vertical-align: top; }
 tr:hover { background: rgba(255,255,255,0.03); }
 .operative-name { font-weight:700; font-size:15px; color:#fff; }
-.operative-company { font-size:12px; color:#06b6d4; margin-top:4px; }
 .operative-role { font-size:11px; color:#a855f7; margin-top:2px; }
 .location-text { color:#a855f7; font-size:13px; }
 .method-badge, .action-badge { padding:6px 12px; border-radius:15px; font-size:11px; font-weight:700; display: inline-block; }
@@ -50,7 +49,19 @@ tr:hover { background: rgba(255,255,255,0.03); }
 .empty { text-align:center; color:#64748b; padding:50px; font-size:16px; }
 .footer { text-align:center; font-size:12px; color:#8C8E90; margin-top:40px; padding:25px 0; border-top: 1px solid rgba(255,255,255,0.1); }
 
-/* Report Modal Styles - OPTIMIZED FOR A4 */
+/* Date Range Modal */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
+.modal-content { background: #1e293b; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%; border: 2px solid #06b6d4; }
+.modal-content h3 { color: #fff; margin-bottom: 20px; }
+.date-inputs { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; }
+.date-inputs label { color: #94a3b8; font-size: 14px; }
+.date-inputs input[type="date"] { flex: 1; padding: 12px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.1); background: #0f172a; color: #fff; }
+.modal-buttons { display: flex; gap: 10px; justify-content: flex-end; }
+.modal-buttons button { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; }
+.btn-confirm { background: #06b6d4; color: #fff; }
+.btn-cancel { background: #64748b; color: #fff; }
+
+/* Report Modal */
 .report-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 1000; overflow-y: auto; }
 .report-content { background: #fff; color: #000; max-width: 800px; margin: 20px auto; padding: 30px; border-radius: 10px; }
 .report-header { text-align: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 3px solid #06b6d4; }
@@ -72,79 +83,23 @@ tr:hover { background: rgba(255,255,255,0.03); }
 .btn-print { background: #06b6d4; }
 .btn-close { background: #64748b; }
 
-/* PRINT STYLES - A4 OPTIMIZED */
 @media print {
-@page {
-size: A4;
-margin: 10mm;
-}
-
-body {
-background: #fff;
--webkit-print-color-adjust: exact;
-print-color-adjust: exact;
-}
-
-.report-modal {
-background: #fff;
-position: static;
-overflow: visible;
-}
-
-.report-content {
-margin: 0;
-padding: 0;
-max-width: 100%;
-box-shadow: none;
-}
-
-.report-actions {
-display: none;
-}
-
-.report-header h1 {
-font-size: 24px;
-}
-
-.report-stats {
-gap: 8px;
-}
-
-.report-stat {
-padding: 10px;
-}
-
-.report-stat h3 {
-font-size: 28px;
-}
-
-.charts-grid {
-grid-template-columns: repeat(2, 1fr);
-gap: 10px;
-page-break-inside: avoid;
-}
-
-.chart-container {
-padding: 10px;
-page-break-inside: avoid;
-}
-
-.chart-container canvas {
-max-height: 180px;
-}
-
-.report-table {
-page-break-inside: auto;
-font-size: 9px;
-}
-
-.report-table tr {
-page-break-inside: avoid;
-}
-
-.report-table th, .report-table td {
-padding: 6px;
-}
+@page { size: A4; margin: 10mm; }
+body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.report-modal { background: #fff; position: static; overflow: visible; }
+.report-content { margin: 0; padding: 0; max-width: 100%; box-shadow: none; }
+.report-actions { display: none; }
+.modal-overlay { display: none !important; }
+.report-header h1 { font-size: 24px; }
+.report-stats { gap: 8px; }
+.report-stat { padding: 10px; }
+.report-stat h3 { font-size: 28px; }
+.charts-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; page-break-inside: avoid; }
+.chart-container { padding: 10px; page-break-inside: avoid; }
+.chart-container canvas { max-height: 180px; }
+.report-table { page-break-inside: auto; font-size: 9px; }
+.report-table tr { page-break-inside: avoid; }
+.report-table th, .report-table td { padding: 6px; }
 }
 </style>
 </head>
@@ -163,15 +118,15 @@ padding: 6px;
 </div>
 
 <div class="controls">
-<select id="locationFilter" onchange="doSearch()">
+<select id="locationFilter" onchange="applyFilters()">
 <option value="all">All Locations</option>
 </select>
 <div class="search-box">
 <span class="search-icon">🔍</span>
-<input type="text" id="searchInput" placeholder="Search by name, company, role, or location..." onkeyup="doSearch()" style="padding-left: 50px;">
+<input type="text" id="searchInput" placeholder="Search by name, company, role..." oninput="applyFilters()" style="padding-left: 50px;">
 </div>
 <button class="btn-refresh" onclick="location.reload()">↻ Refresh</button>
-<button class="btn-export" onclick="exportCSV()">Export CSV</button>
+<button class="btn-export" onclick="showExportModal()">Export CSV</button>
 <button class="btn-report" onclick="generateReport()">📊 Generate Report</button>
 <button class="btn-clear" onclick="clearToday()">Clear Today</button>
 </div>
@@ -199,6 +154,28 @@ padding: 6px;
 <div class="footer">Face Reader Basic - We are a team together Ltd ©️ 2026</div>
 </div>
 
+<!-- CSV Export Modal -->
+<div id="exportModal" class="modal-overlay">
+<div class="modal-content">
+<h3>📅 Export Attendance Records</h3>
+<p style="color:#94a3b8; margin-bottom:20px; font-size:14px;">Select date range to export:</p>
+<div class="date-inputs">
+<div style="flex:1;">
+<label>From:</label>
+<input type="date" id="dateFrom">
+</div>
+<div style="flex:1;">
+<label>To:</label>
+<input type="date" id="dateTo">
+</div>
+</div>
+<div class="modal-buttons">
+<button class="btn-cancel" onclick="closeExportModal()">Cancel</button>
+<button class="btn-confirm" onclick="exportCSVWithDateRange()">Export CSV</button>
+</div>
+</div>
+</div>
+
 <!-- Report Modal -->
 <div id="reportModal" class="report-modal">
 <div class="report-content">
@@ -209,48 +186,22 @@ padding: 6px;
 </div>
 
 <div class="report-stats">
-<div class="report-stat">
-<h3 id="rOnSite" style="color:#10b981">0</h3>
-<p>Currently On Site</p>
-</div>
-<div class="report-stat">
-<h3 id="rTotal" style="color:#06b6d4">0</h3>
-<p>Total Sign-Ins</p>
-</div>
-<div class="report-stat">
-<h3 id="rRecent" style="color:#f97316">0</h3>
-<p>Last 15 Minutes</p>
-</div>
-<div class="report-stat">
-<h3 id="rUnique" style="color:#a855f7">0</h3>
-<p>Unique Operatives</p>
-</div>
+<div class="report-stat"><h3 id="rOnSite" style="color:#10b981">0</h3><p>Currently On Site</p></div>
+<div class="report-stat"><h3 id="rTotal" style="color:#06b6d4">0</h3><p>Total Sign-Ins</p></div>
+<div class="report-stat"><h3 id="rRecent" style="color:#f97316">0</h3><p>Last 15 Minutes</p></div>
+<div class="report-stat"><h3 id="rUnique" style="color:#a855f7">0</h3><p>Unique Operatives</p></div>
 </div>
 
 <div class="charts-grid">
-<div class="chart-container">
-<h3>Sign-Ins by Hour</h3>
-<canvas id="hourChart"></canvas>
-</div>
-<div class="chart-container">
-<h3>Sign-Ins by Location</h3>
-<canvas id="locationChart"></canvas>
-</div>
-<div class="chart-container">
-<h3>Method Breakdown</h3>
-<canvas id="methodChart"></canvas>
-</div>
-<div class="chart-container">
-<h3>Action (In vs Out)</h3>
-<canvas id="actionChart"></canvas>
-</div>
+<div class="chart-container"><h3>Sign-Ins by Hour</h3><canvas id="hourChart"></canvas></div>
+<div class="chart-container"><h3>Sign-Ins by Location</h3><canvas id="locationChart"></canvas></div>
+<div class="chart-container"><h3>Method Breakdown</h3><canvas id="methodChart"></canvas></div>
+<div class="chart-container"><h3>Action (In vs Out)</h3><canvas id="actionChart"></canvas></div>
 </div>
 
 <h2 style="color:#0f172a; margin-bottom:15px; font-size:16px;">Detailed Records</h2>
 <table class="report-table" id="reportTable">
-<thead>
-<tr><th>Operative</th><th>Company</th><th>Role</th><th>Location</th><th>Method</th><th>Action</th><th>Time</th></tr>
-</thead>
+<thead><tr><th>Operative</th><th>Company</th><th>Role</th><th>Location</th><th>Method</th><th>Action</th><th>Time</th></tr></thead>
 <tbody id="reportTableBody"></tbody>
 </table>
 
@@ -282,7 +233,6 @@ let allRecords = [];
 let statusData = {};
 let usersData = {};
 let allLocations = new Set(['all']);
-let filteredRecords = [];
 let charts = {};
 
 function todayStart() {
@@ -305,19 +255,19 @@ if (s < 3600) return Math.floor(s / 60) + 'm ago';
 return Math.floor(s / 3600) + 'h ago';
 }
 
-function doSearch() {
+function applyFilters() {
 const today = todayStart();
 const locFilter = document.getElementById('locationFilter').value;
 const searchText = document.getElementById('searchInput').value.toLowerCase().trim();
 
-filteredRecords = allRecords.filter(r => r.timestamp && r.timestamp >= today);
+let displayRecords = allRecords.filter(r => r.timestamp && r.timestamp >= today);
 
 if (locFilter !== 'all') {
-filteredRecords = filteredRecords.filter(r => r.assignedLocation === locFilter);
+displayRecords = displayRecords.filter(r => r.assignedLocation === locFilter);
 }
 
 if (searchText !== '') {
-filteredRecords = filteredRecords.filter(r => {
+displayRecords = displayRecords.filter(r => {
 const name = (r.operativeName || '').toLowerCase();
 const company = (r.operativeCompany || '').toLowerCase();
 const location = (r.assignedLocation || '').toLowerCase();
@@ -326,35 +276,33 @@ return name.includes(searchText) || company.includes(searchText) || location.inc
 });
 }
 
-renderTable();
-updateStats();
+renderTable(displayRecords);
+updateStats(displayRecords);
 }
 
-function updateStats() {
+function updateStats(records) {
 let onSiteCount = 0;
 Object.values(statusData).forEach(s => {
-if (s && s.onSite === true) {
-onSiteCount++;
-}
+if (s && s.onSite === true) onSiteCount++;
 });
 
 document.getElementById('onsite').textContent = onSiteCount;
-document.getElementById('total').textContent = filteredRecords.filter(r => r.action === 'IN').length;
-document.getElementById('recent').textContent = filteredRecords.filter(r => Date.now() - r.timestamp < 15 * 60 * 1000).length;
-document.getElementById('unique').textContent = new Set(filteredRecords.map(r => r.operativeId)).size;
+document.getElementById('total').textContent = records.filter(r => r.action === 'IN').length;
+document.getElementById('recent').textContent = records.filter(r => Date.now() - r.timestamp < 15 * 60 * 1000).length;
+document.getElementById('unique').textContent = new Set(records.map(r => r.operativeId)).size;
 }
 
-function renderTable() {
+function renderTable(records) {
 const tbody = document.getElementById('tbody');
 
-if (filteredRecords.length === 0) {
+if (records.length === 0) {
 tbody.innerHTML = '<tr><td colspan="8" class="empty">No records found</td></tr>';
 return;
 }
 
-filteredRecords.sort((a, b) => b.timestamp - a.timestamp);
+records.sort((a, b) => b.timestamp - a.timestamp);
 
-tbody.innerHTML = filteredRecords.map(r => {
+tbody.innerHTML = records.map(r => {
 const time = new Date(r.timestamp).toLocaleTimeString();
 const methodClass = r.method === 'FACE' ? 'face' : 'qr';
 const actionClass = r.action === 'IN' ? 'in' : 'out';
@@ -367,16 +315,16 @@ const mapUrl = `https://www.google.com/maps?q=${r.location.lat},${r.location.lng
 gpsHtml = `<div class="gps-info">${escapeHtml(r.location.address)}<a href="${mapUrl}" target="_blank" class="map-link">🗺️</a></div>`;
 } else if (r.location && r.location.lat) {
 const mapUrl = `https://www.google.com/maps?q=${r.location.lat},${r.location.lng}`;
-gpsHtml = `<div class="gps-info">${r.location.lat.toFixed(4)}, ${r.location.lng.toFixed(4)}<a href="${mapUrl}" target="_blank" class="map-link">️</a></div>`;
+gpsHtml = `<div class="gps-info">${r.location.lat.toFixed(4)}, ${r.location.lng.toFixed(4)}<a href="${mapUrl}" target="_blank" class="map-link">🗺️</a></div>`;
 }
 
 return `<tr>
 <td>
 <div class="operative-name">${escapeHtml(r.operativeName || 'Unknown')}</div>
-<div class="operative-company">${escapeHtml(r.operativeCompany || 'Unknown')}</div>
+<div class="operative-role">${escapeHtml(role)}</div>
 </td>
-<td><div class="operative-company">${escapeHtml(r.operativeCompany || 'Unknown')}</div></td>
-<td><div class="operative-role">${escapeHtml(role)}</div></td>
+<td><div>${escapeHtml(r.operativeCompany || 'Unknown')}</div></td>
+<td><div style="color:#a855f7; font-size:12px;">${escapeHtml(role)}</div></td>
 <td><div class="location-text">${escapeHtml(r.assignedLocation || 'Unassigned')}</div></td>
 <td><span class="method-badge ${methodClass}">${r.method || 'Unknown'}</span></td>
 <td><span class="action-badge ${actionClass}">${r.action || 'Unknown'}</span></td>
@@ -417,31 +365,128 @@ select.value = 'all';
 }
 }
 
+// CSV Export with Date Range
+function showExportModal() {
+// Set default dates (today)
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('dateFrom').value = today;
+document.getElementById('dateTo').value = today;
+document.getElementById('exportModal').style.display = 'flex';
+}
+
+function closeExportModal() {
+document.getElementById('exportModal').style.display = 'none';
+}
+
+function exportCSVWithDateRange() {
+const dateFrom = document.getElementById('dateFrom').value;
+const dateTo = document.getElementById('dateTo').value;
+
+if (!dateFrom || !dateTo) {
+alert('Please select both start and end dates');
+return;
+}
+
+const fromDate = new Date(dateFrom);
+fromDate.setHours(0, 0, 0, 0);
+
+const toDate = new Date(dateTo);
+toDate.setHours(23, 59, 59, 999);
+
+let data = allRecords.filter(r => {
+const recordDate = new Date(r.timestamp);
+return r.timestamp && recordDate >= fromDate && recordDate <= toDate;
+});
+
+// Apply location filter if not "all"
+const locFilter = document.getElementById('locationFilter').value;
+if (locFilter !== 'all') {
+data = data.filter(r => r.assignedLocation === locFilter);
+}
+
+// Apply search filter
+const searchText = document.getElementById('searchInput').value.toLowerCase().trim();
+if (searchText !== '') {
+data = data.filter(r => {
+const name = (r.operativeName || '').toLowerCase();
+const company = (r.operativeCompany || '').toLowerCase();
+const location = (r.assignedLocation || '').toLowerCase();
+const role = (r.role || usersData[r.operativeId]?.role || '').toLowerCase();
+return name.includes(searchText) || company.includes(searchText) || location.includes(searchText) || role.includes(searchText);
+});
+}
+
+if (data.length === 0) {
+alert('No records found for the selected date range');
+return;
+}
+
+let csv = 'Date,Time,Name,Company,Role,Location,Method,Action,GPS Address,Lat,Lng\n';
+data.sort((a, b) => a.timestamp - b.timestamp).forEach(r => {
+const date = new Date(r.timestamp).toISOString().split('T')[0];
+const time = new Date(r.timestamp).toLocaleTimeString();
+const userData = usersData[r.operativeId] || {};
+const role = r.role || userData.role || '';
+const gpsAddress = r.location ? (r.location.address || `${r.location.lat},${r.location.lng}`) : '';
+const lat = r.location ? r.location.lat : '';
+const lng = r.location ? r.location.lng : '';
+
+csv += `"${date}","${time}","${r.operativeName}","${r.operativeCompany}","${role}","${r.assignedLocation}","${r.method}","${r.action}","${gpsAddress}","${lat}","${lng}"\n`;
+});
+
+const blob = new Blob([csv], { type: 'text/csv' });
+const a = document.createElement('a');
+a.href = URL.createObjectURL(blob);
+a.download = `face-reader-${dateFrom}_to_${dateTo}.csv`;
+a.click();
+
+closeExportModal();
+alert(`✅ Exported ${data.length} records from ${dateFrom} to ${dateTo}`);
+}
+
 function generateReport() {
-if (filteredRecords.length === 0) {
+const today = todayStart();
+const locFilter = document.getElementById('locationFilter').value;
+const searchText = document.getElementById('searchInput').value.toLowerCase().trim();
+
+let reportRecords = allRecords.filter(r => r.timestamp && r.timestamp >= today);
+
+if (locFilter !== 'all') {
+reportRecords = reportRecords.filter(r => r.assignedLocation === locFilter);
+}
+
+if (searchText !== '') {
+reportRecords = reportRecords.filter(r => {
+const name = (r.operativeName || '').toLowerCase();
+const company = (r.operativeCompany || '').toLowerCase();
+const location = (r.assignedLocation || '').toLowerCase();
+const role = (r.role || usersData[r.operativeId]?.role || '').toLowerCase();
+return name.includes(searchText) || company.includes(searchText) || location.includes(searchText) || role.includes(searchText);
+});
+}
+
+if (reportRecords.length === 0) {
 alert('No records to generate report');
 return;
 }
 
 let onSiteCount = 0;
-Object.values(statusData).forEach(s => {
-if (s && s.onSite === true) onSiteCount++;
-});
+Object.values(statusData).forEach(s => { if (s && s.onSite === true) onSiteCount++; });
 
 document.getElementById('rOnSite').textContent = onSiteCount;
-document.getElementById('rTotal').textContent = filteredRecords.filter(r => r.action === 'IN').length;
-document.getElementById('rRecent').textContent = filteredRecords.filter(r => Date.now() - r.timestamp < 15 * 60 * 1000).length;
-document.getElementById('rUnique').textContent = new Set(filteredRecords.map(r => r.operativeId)).size;
+document.getElementById('rTotal').textContent = reportRecords.filter(r => r.action === 'IN').length;
+document.getElementById('rRecent').textContent = reportRecords.filter(r => Date.now() - r.timestamp < 15 * 60 * 1000).length;
+document.getElementById('rUnique').textContent = new Set(reportRecords.map(r => r.operativeId)).size;
 
 document.getElementById('reportDate').textContent = 'Generated on: ' + new Date().toLocaleString();
-document.getElementById('reportLocation').textContent = 'Location: ' + (document.getElementById('locationFilter').value === 'all' ? 'All Sites' : document.getElementById('locationFilter').value);
+document.getElementById('reportLocation').textContent = 'Location: ' + (locFilter === 'all' ? 'All Sites' : locFilter);
 
 const hours = {};
 const locations = {};
 const methods = { FACE: 0, QR: 0 };
 const actions = { IN: 0, OUT: 0 };
 
-filteredRecords.forEach(r => {
+reportRecords.forEach(r => {
 const hour = new Date(r.timestamp).getHours();
 hours[hour] = (hours[hour] || 0) + 1;
 
@@ -456,84 +501,34 @@ Object.values(charts).forEach(c => c.destroy());
 
 charts.hour = new Chart(document.getElementById('hourChart'), {
 type: 'bar',
-data: {
-labels: Object.keys(hours).map(h => h + ':00'),
-datasets: [{
-label: 'Sign-Ins',
-data: Object.values(hours),
-backgroundColor: '#06b6d4'
-}]
-},
-options: {
-responsive: true,
-maintainAspectRatio: true,
-plugins: { legend: { display: false } }
-}
+data: { labels: Object.keys(hours).map(h => h + ':00'), datasets: [{ label: 'Sign-Ins', data: Object.values(hours), backgroundColor: '#06b6d4' }] },
+options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } } }
 });
 
 charts.location = new Chart(document.getElementById('locationChart'), {
 type: 'pie',
-data: {
-labels: Object.keys(locations),
-datasets: [{
-data: Object.values(locations),
-backgroundColor: ['#06b6d4', '#10b981', '#f97316', '#a855f7', '#ef4444']
-}]
-},
-options: {
-responsive: true,
-maintainAspectRatio: true,
-plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
-}
+data: { labels: Object.keys(locations), datasets: [{ data: Object.values(locations), backgroundColor: ['#06b6d4', '#10b981', '#f97316', '#a855f7', '#ef4444'] }] },
+options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }
 });
 
 charts.method = new Chart(document.getElementById('methodChart'), {
 type: 'doughnut',
-data: {
-labels: ['Face', 'QR'],
-datasets: [{
-data: [methods.FACE, methods.QR],
-backgroundColor: ['#06b6d4', '#8C8E90']
-}]
-},
-options: {
-responsive: true,
-maintainAspectRatio: true,
-plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
-}
+data: { labels: ['Face', 'QR'], datasets: [{ data: [methods.FACE, methods.QR], backgroundColor: ['#06b6d4', '#8C8E90'] }] },
+options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }
 });
 
 charts.action = new Chart(document.getElementById('actionChart'), {
 type: 'pie',
-data: {
-labels: ['In', 'Out'],
-datasets: [{
-data: [actions.IN, actions.OUT],
-backgroundColor: ['#10b981', '#f97316']
-}]
-},
-options: {
-responsive: true,
-maintainAspectRatio: true,
-plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
-}
+data: { labels: ['In', 'Out'], datasets: [{ data: [actions.IN, actions.OUT], backgroundColor: ['#10b981', '#f97316'] }] },
+options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }
 });
 
 const tableBody = document.getElementById('reportTableBody');
-tableBody.innerHTML = filteredRecords.map(r => {
+tableBody.innerHTML = reportRecords.map(r => {
 const time = new Date(r.timestamp).toLocaleTimeString();
 const userData = usersData[r.operativeId] || {};
 const role = r.role || userData.role || 'No role';
-
-return `<tr>
-<td>${escapeHtml(r.operativeName)}</td>
-<td>${escapeHtml(r.operativeCompany)}</td>
-<td>${escapeHtml(role)}</td>
-<td>${escapeHtml(r.assignedLocation)}</td>
-<td>${r.method}</td>
-<td>${r.action}</td>
-<td>${time}</td>
-</tr>`;
+return `<tr><td>${escapeHtml(r.operativeName)}</td><td>${escapeHtml(r.operativeCompany)}</td><td>${escapeHtml(role)}</td><td>${escapeHtml(r.assignedLocation)}</td><td>${r.method}</td><td>${r.action}</td><td>${time}</td></tr>`;
 }).join('');
 
 document.getElementById('reportModal').style.display = 'block';
@@ -544,16 +539,19 @@ document.getElementById('reportModal').style.display = 'none';
 }
 
 signinsRef.on('value', snap => {
+console.log('📥 Received signins');
 allRecords = [];
 snap.forEach(child => {
 const val = child.val();
 if(val) allRecords.push({ id: child.key, ...val });
 });
+console.log('Total records:', allRecords.length);
 updateLocationDropdown();
-doSearch();
+applyFilters();
 });
 
 statusRef.on('value', snap => {
+console.log('📥 Received status');
 statusData = {};
 snap.forEach(child => {
 const val = child.val();
@@ -562,10 +560,11 @@ statusData[child.key] = val;
 }
 });
 updateLocationDropdown();
-doSearch();
+applyFilters();
 });
 
 usersRef.on('value', snap => {
+console.log('📥 Received users');
 usersData = {};
 snap.forEach(child => {
 const user = child.val();
@@ -575,31 +574,11 @@ allLocations.add(user.location);
 }
 });
 updateLocationDropdown();
-doSearch();
+applyFilters();
 });
-
-function exportCSV() {
-if (filteredRecords.length === 0) {
-alert('No records to export');
-return;
-}
-
-let csv = 'Date,Time,Name,Company,Role,Location,Method,Action\n';
-filteredRecords.forEach(r => {
-const userData = usersData[r.operativeId] || {};
-const role = r.role || userData.role || '';
-csv += `"${new Date(r.timestamp).toISOString().split('T')[0]}","${new Date(r.timestamp).toLocaleTimeString()}","${r.operativeName}","${r.operativeCompany}","${role}","${r.assignedLocation}","${r.method}","${r.action}"\n`;
-});
-
-const blob = new Blob([csv], { type: 'text/csv' });
-const a = document.createElement('a');
-a.href = URL.createObjectURL(blob);
-a.download = `face-reader-${new Date().toISOString().split('T')[0]}.csv`;
-a.click();
-}
 
 async function clearToday() {
-if (!confirm('️ Delete ALL today\'s records and reset status?')) return;
+if (!confirm('⚠️ Delete ALL today\'s records and reset status?')) return;
 const today = todayStart();
 const updates = {};
 
