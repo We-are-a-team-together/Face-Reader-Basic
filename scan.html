@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Face Reader - Sign In / Out</title>
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: #1a1a1a; color:#fff; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; min-height:100vh; }
+.container { max-width:600px; margin:0 auto; padding:30px 20px; }
+header { text-align:center; padding:30px 0; margin-bottom:20px; }
+.logo { font-size:36px; font-weight:900; letter-spacing: 2px; color: #06b6d4; }
+.tagline { color:#8C8E90; font-size:13px; margin-top:8px; letter-spacing: 3px; text-transform: uppercase; }
+.card { background: #2d2d2d; padding:25px; border-radius:20px; margin-bottom:20px; border: 1px solid #404040; }
+h2 { margin:0 0 20px; font-size:13px; color:#8C8E90; text-transform:uppercase; letter-spacing:2px; font-weight:700; }
+button { width:100%; padding:18px; margin:10px 0; border-radius:12px; border:none; font-weight:700; cursor:pointer; color:#fff; font-size:16px; text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s; }
+.btn-face { background: #06b6d4; }
+.btn-face:hover { background: #0891b2; }
+.btn-capture { background: #10b981; display:none; }
+.btn-capture:hover { background: #059669; }
+.btn-capture.out { background: #ef4444; }
+.btn-capture.out:hover { background: #dc2626; }
+.btn-qr { background: #8C8E90; }
+.btn-qr:hover { background: #7a7c7e; }
+#video { width:100%; border-radius:15px; display:none; margin-bottom:15px; border: 3px solid #06b6d4; }
+#qr-reader { display:none; border-radius:15px; overflow:hidden; }
+.status-box { padding:20px; border-radius:15px; text-align:center; font-weight:600; font-size:16px; margin-bottom:25px; border: 2px solid transparent; }
+.status-idle { background: #2d2d2d; color:#8C8E90; border-color: #404040; }
+.status-scanning { background: #3d3520; color:#fbbf24; border-color: #fbbf24; }
+.status-success { background: #1e3a2a; color:#34d399; border-color: #34d399; }
+.status-error { background: #3d1f1f; color:#f87171; border-color: #f87171; }
+.location-info { background: #2d2d40; color:#a5b4fc; padding:12px; border-radius:10px; margin-top:15px; font-size:13px; display:none; border: 1px solid #4040a0; }
+.footer { text-align:center; font-size:12px; color:#8C8E90; margin-top:30px; padding:20px 0; border-top: 1px solid #404040; }
+.privacy-notice { background: #1e3a8a; border: 1px solid #06b6d4; padding:15px; border-radius:10px; margin-bottom:20px; font-size:12px; color:#93c5fd; text-align:center; }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<div class="logo">FACE READER</div>
+<div class="tagline">Ready to connect</div>
+</header>
+
+<div class="privacy-notice">🔒 Location tracking enabled for attendance verification</div>
+
+<div id="statusBox" class="status-box status-idle">Loading models...</div>
+
+<div class="card">
+<h2>🎥 Face Recognition</h2>
+<button type="button" class="btn-face" id="btnFace" onclick="startFaceScan()" disabled>Start Face Scan</button>
+<button type="button" class="btn-capture" id="btnCapture" onclick="confirmSignin()">Sign In</button>
+<video id="video" autoplay muted playsinline></video>
+<div id="locationInfo" class="location-info"><span id="locationText">Acquiring location...</span></div>
+</div>
+
+<div class="card">
+<h2>📷 QR Code</h2>
+<div id="qr-reader"></div>
+<button type="button" class="btn-qr" id="btnQr" onclick="toggleQrScan()">Open Camera for QR</button>
+</div>
+
+<div class="footer">Face reader Basic - We are a team together Ltd</div>
+</div>
+
+<script>
+const firebaseConfig = {
+apiKey: "AIzaSyB1m4mgU_r71POdSD8vxzIq2BrSk7K0M-o",
+authDomain: "face-reader-basic.firebaseapp.com",
+databaseURL: "https://face-reader-basic-default-rtdb.europe-west1.firebasedatabase.app",
+projectId: "face-reader-basic",
+storageBucket: "face-reader-basic.firebasestorage.app",
+messagingSenderId: "645270939984",
+appId: "1:645270939984:web:aa43a6522527a83941e455"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const signinsRef = db.ref('signins');
+const statusRef = db.ref('status');
+const operativesRef = db.ref('users');
+const faceDescriptorsRef = db.ref('faceDescriptors');
+
+let isFaceScanning = false, isQrScanning = false, videoStream = null, qrScanner = null;
+let faceDescriptors = {}, operatives = {}, modelsLoaded = false;
+let currentLocation = null;
+let pendingSignin = null; // Stores matched user data before confirmation
+
+async function loadModels() {
+const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model';
+await Promise.all([
+faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+]);
+modelsLoaded = true;
+document.getElementById('statusBox').className = 'status-box status-success';
+document.getElementById('statusBox').textContent = '✅ Ready to connect';
+document.getElementById('btnFace').disabled = false;
+const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
+headers: { 'User-Agent': 'Face Reader Attendance System' }
+});
+const data = await response.json();
+if (data.display_name) {
+const addr = data.address;
+const parts = [];
+if (addr.road) parts.push(addr.road);
+if (addr.suburb) parts.push(addr.suburb);
+if (addr.city || addr.town || addr.village) parts.push(addr.city || addr.town || addr.village);
+if (addr.postcode) parts.push(addr.postcode);
+resolve({ lat, lng, accuracy, address: parts.join(', ') || data.display_name });
+} else {
+resolve({ lat, lng, accuracy, address: `${lat.toFixed(4)}, ${lng.toFixed(4)}` });
+}
+} catch (err) {
+resolve({ lat, lng, accuracy, address: `${lat.toFixed(4)}, ${lng.toFixed(4)}` });
+}
+},
+(error) => {
+hideLocationInfo();
+reject(error);
+},
+{ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+);
+});
+}
+
+async function startFaceScan() {
+if (!modelsLoaded) {
+await loadModels();
+}
+if (isQrScanning) stopQrScan();
+
+try {
+currentLocation = await getLocation();
+} catch (err) {
+showStatus('⚠️ Location access denied.', 'error');
+setTimeout(() => showStatus('Ready to connect', 'idle'), 3000);
+return;
+}
+
+isFaceScanning = true;
+document.getElementById('btnFace').style.display = 'none';
+showStatus('Position your face in the camera', 'scanning');
+
+try {
+videoStream = await navigator.mediaDevices.getUserMedia({
+video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+});
+const video = document.getElementById('video');
+video.srcObject = videoStream;
+video.style.display = 'block';
+await new Promise(r => {
+video.onloadedmetadata = () => {
+video.play();
+r();
+};
+});
+detectFaceLoop();
+} catch (err) {
+hideLocationInfo();
+showStatus('❌ Camera error', 'error');
+stopFaceScan();
+}
+}
+
+function stopFaceScan() {
+isFaceScanning = false;
+pendingSignin = null;
+document.getElementById('btnFace').style.display = 'block';
+document.getElementById('btnCapture').style.display = 'none';
+document.getElementById('video').style.display = 'none';
+hideLocationInfo();
+if (videoStream) {
+videoStream.getTracks().forEach(t => t.stop());
+videoStream = null;
+}
+currentLocation = null;
+showStatus('Ready to connect', 'idle');
+}
+
+async function detectFaceLoop() {
+if (!isFaceScanning) return;
+try {
+const video = document.getElementById('video');
+if (!video || video.readyState !== 4) {
+setTimeout(detectFaceLoop, 500);
+return;
+}
+
+// EXACT PROVEN FACE RECOGNITION LINE
+const detection = await faceapi.detectSingleFace(
+video,
+new faceapi.TinyFaceDetectorOptions()
+).withFaceLandmarks().withFaceDescriptor();
+
+if (detection) {
+const result = findBestMatch(detection.descriptor);
+if (result.match) {
+// Pause scanning and check status to update button dynamically
+isFaceScanning = false;
+
+const statusSnap = await statusRef.child(result.match.id).once('value');
+const currentStatus = statusSnap.val();
+const isOnSite = currentStatus && currentStatus.onSite;
+const action = isOnSite ? 'OUT' : 'IN';
+
+pendingSignin = {
+id: result.match.id,
+name: result.match.name,
+company: result.match.company,
+location: result.match.location,
+action: action
+};
+
+const btnCapture = document.getElementById('btnCapture');
+btnCapture.textContent = action === 'IN' ? 'Sign In' : 'Sign Out';
+btnCapture.className = action === 'IN' ? 'btn-capture' : 'btn-capture out';
+btnCapture.style.display = 'block';
+
+showStatus(`Face recognized: ${result.match.name}. Click to ${action}.`, 'scanning');
+} else {
+hideLocationInfo();
+showStatus('Face not recognized - try QR code', 'error');
+setTimeout(() => {
+if (isFaceScanning) showStatus('Position your face in the camera', 'scanning');
+}, 3000);
+}
+}
+} catch (err) {
+console.error(err);
+}
+if (isFaceScanning) setTimeout(detectFaceLoop, 500);
+}
+
+async function confirmSignin() {
+if (!pendingSignin) return;
+showStatus('⏳ Processing...', 'scanning');
+await recordSignin(pendingSignin.id, pendingSignin.name, pendingSignin.company, pendingSignin.location, pendingSignin.action, 'FACE');
+stopFaceScan();
+}
+
+function findBestMatch(inputDescriptor) {
+const THRESHOLD = 0.65;
+for (const [id, data] of Object.entries(faceDescriptors)) {
+const storedDescriptor = new Float32Array(data.descriptor);
+const distance = faceapi.euclideanDistance(inputDescriptor, storedDescriptor);
+if (distance < THRESHOLD) {
+const operative = operatives[id];
+if (operative) return { match: { id, name: operative.name, company: operative.company, location: operative.location } };
+}
+}
+return { match: null };
+}
+
+async function recordSignin(operativeId, name, company, assignedLocation, action, method) {
+try {
+const signinData = {
+operativeId,
+operativeName: name,
+operativeCompany: company,
+assignedLocation: assignedLocation || 'Unassigned',
+action,
+method,
+timestamp: firebase.database.ServerValue.TIMESTAMP,
+date: new Date().toISOString().slice(0,10)
+};
+if (currentLocation) {
+signinData.location = {
+lat: currentLocation.lat,
+lng: currentLocation.lng,
+accuracy: currentLocation.accuracy,
+address: currentLocation.address,
+timestamp: Date.now()
+};
+}
+await signinsRef.push(signinData);
+await statusRef.child(operativeId).set({
+onSite: action === 'IN',
+lastAction: action,
+lastTimestamp: firebase.database.ServerValue.TIMESTAMP,
+company: company,
+assignedLocation: assignedLocation || 'Unassigned'
+});
+
+const locText = currentLocation ? `\n📍 ${currentLocation.address}` : '';
+const msg = action === 'IN' ? `✅ Welcome ${name} - Signed IN${locText}` : `👋 Goodbye ${name} - Signed OUT${locText}`;
+showStatus(msg, 'success');
+if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+setTimeout(() => {
+if (!isFaceScanning && !isQrScanning) showStatus('Ready to connect', 'idle');
+showStatus('Ready to connect', 'idle');
+}
+
+async function handleQrCode(qrData) {
+for (const [id, data] of Object.entries(operatives)) {
+if (data.qrCode === qrData || id === qrData) {
+const statusSnap = await statusRef.child(id).once('value');
+const currentStatus = statusSnap.val();
+const isOnSite = currentStatus && currentStatus.onSite;
+const action = isOnSite ? 'OUT' : 'IN';
+await recordSignin(id, data.name, data.company, data.location, action, 'QR');
+return;
+}
+}
+hideLocationInfo();
+showStatus('❌ Unknown QR code', 'error');
+}
+
+loadModels();
+</script>
+</body>
+</html>
