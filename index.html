@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Face Reader - Register</title>
+<title>FaceCheck - Register</title>
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -12,7 +12,9 @@
 body { background:#020617; color:#fff; font-family:Arial,sans-serif; margin:0; padding:20px; }
 .container { max-width:600px; margin:0 auto; }
 header { text-align:center; padding:20px 0; border-bottom:1px solid #1e293b; margin-bottom:20px; }
-.logo { font-size:28px; font-weight:800; color: #06b6d4; }
+.logo { font-size:28px; font-weight:800; }
+.orange { color:#F58C1F; }
+.grey { color:#8E8E8E; display:block; font-size:24px; }
 .card { background:#1e293b; padding:20px; border-radius:10px; margin-bottom:20px; }
 input { width:100%; padding:12px; margin:8px 0; border-radius:5px; border:1px solid #334155; background:#0f172a; color:#fff; }
 button { width:100%; padding:14px; margin:10px 0; border-radius:5px; border:none; font-weight:700; cursor:pointer; color:#fff; }
@@ -29,7 +31,10 @@ button { width:100%; padding:14px; margin:10px 0; border-radius:5px; border:none
 <body>
 <div class="container">
 <header>
-<div class="logo">FACE READER</div>
+<div class="logo">
+<span class="orange">REGENCY</span>
+<span class="grey">FACADES</span>
+</div>
 </header>
 
 <div id="status" class="status status-loading">Loading models...</div>
@@ -37,10 +42,9 @@ button { width:100%; padding:14px; margin:10px 0; border-radius:5px; border:none
 <div class="card">
 <h2>Register Operative Face</h2>
 <input type="text" id="name" placeholder="Full Name" required>
-<input type="text" id="company" placeholder="Company / Employer" required>
-<input type="text" id="location" placeholder="Assigned Location (e.g., The Monument Court)" required>
-<input type="text" id="role" placeholder="Role / Job Title">
-<input type="text" id="qrCode" placeholder="QR Code ID (Optional)">
+<input type="text" id="company" placeholder="Company" required>
+<input type="text" id="role" placeholder="Role/Job Title">
+<input type="text" id="qrCode" placeholder="QR Code (optional)">
 
 <button type="button" class="btn-camera" id="btnCamera" onclick="startCamera()" disabled>
 Open Camera
@@ -51,24 +55,25 @@ Capture Face
 </button>
 </div>
 
-<div class="footer">Face reader Basic - We are a team together Ltd</div>
+<div class="footer">Regency Facades 2026</div>
 </div>
 
 <script>
+const SITE_ID = "I";
 const firebaseConfig = {
-apiKey: "AIzaSyB1m4mgU_r71POdSD8vxzIq2BrSk7K0M-o",
-authDomain: "face-reader-basic.firebaseapp.com",
-databaseURL: "https://face-reader-basic-default-rtdb.europe-west1.firebasedatabase.app",
-projectId: "face-reader-basic",
-storageBucket: "face-reader-basic.firebasestorage.app",
-messagingSenderId: "645270939984",
-appId: "1:645270939984:web:aa43a6522527a83941e455"
+apiKey: "AIzaSyDtoxxIjNTNUAs36702Fvcis-ZnfTjyJyU",
+authDomain: "swiftcheck-face.firebaseapp.com",
+databaseURL: "https://swiftcheck-face-default-rtdb.europe-west1.firebasedatabase.app",
+projectId: "swiftcheck-face",
+storageBucket: "swiftcheck-face.firebasestorage.app",
+messagingSenderId: "450988754217",
+appId: "1:450988754217:web:3635f97011943c51266338"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const operativesRef = db.ref('users');
-const faceDescriptorsRef = db.ref('faceDescriptors');
+const operativesRef = db.ref('sites/' + SITE_ID + '/operatives');
+const faceDescriptorsRef = db.ref('sites/' + SITE_ID + '/faceDescriptors');
 
 let videoStream = null;
 
@@ -85,8 +90,7 @@ document.getElementById('btnCamera').disabled = false;
 async function startCamera() {
 const name = document.getElementById('name').value.trim();
 const company = document.getElementById('company').value.trim();
-const location = document.getElementById('location').value.trim();
-if (!name || !company || !location) { alert('Please fill in Name, Company, and Assigned Location'); return; }
+if (!name || !company) { alert('Fill in Name and Company'); return; }
 
 videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
 const video = document.getElementById('video');
@@ -101,11 +105,9 @@ async function captureFace() {
 const video = document.getElementById('video');
 const name = document.getElementById('name').value.trim();
 const company = document.getElementById('company').value.trim();
-const location = document.getElementById('location').value.trim();
 const role = document.getElementById('role').value.trim();
 const qrCode = document.getElementById('qrCode').value.trim();
 
-// EXACT PROVEN FACE RECOGNITION LINE
 const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
 
 if (!detection) {
@@ -118,8 +120,8 @@ const faceDescriptor = Array.from(detection.descriptor);
 const newRef = operativesRef.push();
 const id = newRef.key;
 
-await newRef.set({ name, company, location, role, qrCode, createdAt: firebase.database.ServerValue.TIMESTAMP });
-await faceDescriptorsRef.child(id).set({ descriptor: faceDescriptor, name, company, location });
+await newRef.set({ name, company, role, qrCode, createdAt: firebase.database.ServerValue.TIMESTAMP });
+await faceDescriptorsRef.child(id).set({ descriptor: faceDescriptor, name, company });
 
 videoStream.getTracks().forEach(t => t.stop());
 document.getElementById('status').className = 'status status-success';
@@ -129,7 +131,6 @@ document.getElementById('btnCamera').style.display = 'block';
 document.getElementById('btnCapture').style.display = 'none';
 document.getElementById('name').value = '';
 document.getElementById('company').value = '';
-document.getElementById('location').value = '';
 document.getElementById('role').value = '';
 document.getElementById('qrCode').value = '';
 }
