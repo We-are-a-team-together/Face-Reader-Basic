@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Face Reader Basic - Register</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
+<style>
+* { box-sizing: border-box; }
+body { background:#020617; color:#fff; font-family:Arial,sans-serif; margin:0; padding:20px; }
+.container { max-width:600px; margin:0 auto; }
+header { text-align:center; padding:20px 0; border-bottom:1px solid #1e293b; margin-bottom:20px; }
+.logo { font-size:28px; font-weight:800; color: #E87722; }
+.card { background:#1e293b; padding:20px; border-radius:10px; margin-bottom:20px; }
+input, select { width:100%; padding:12px; margin:8px 0; border-radius:5px; border:1px solid #334155; background:#0f172a; color:#fff; }
+select option { background: #0f172a; color: #fff; }
+button { width:100%; padding:12px; border-radius:5px; border:none; font-weight:700; cursor:pointer; color:#fff; margin-top:10px; }
+.btn-primary { background:#4f46e5; }
+.btn-success { background:#10b981; }
+.status { padding:12px; border-radius:5px; text-align:center; margin-bottom:15px; display:none; }
+.success { background:#064e3b; color:#6ee7b7; display:block; }
+.error { background:#7f1d1d; color:#fca5a5; display:block; }
+.info { background:#1e3a8a; color:#93c5fd; display:block; }
+#video { width: 100%; border-radius: 8px; display: none; margin-bottom: 10px; }
+.footer { text-align:center; font-size:11px; color:#475569; margin-top:20px; }
+.site-box { background: rgba(15, 23, 42, 0.8); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #334155; }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<div class="logo">Face Reader Basic</div>
+</header>
+
+<div class="site-box">
+<label style="font-size: 12px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Site Identifier / Code:</label>
+<input type="text" id="siteInput" value="Site-A" placeholder="e.g. Site-A, Site-B" onchange="updateSite()">
+</div>
+
+<div id="statusMsg" class="status"></div>
+
+<div class="card">
+<h2>Register Operative Face</h2>
+<form id="regForm">
+<input type="text" id="name" placeholder="Full Name" required>
+<input type="text" id="company" placeholder="Company" required>
+<input type="text" id="role" placeholder="Role/Job Title">
+<input type="text" id="location" placeholder="Assigned Specific Location (e.g. Block 1, Level 2)" required>
+<input type="text" id="qrCode" placeholder="QR Code ID (Optional)">
+
+<video id="video" autoplay muted playsinline></video>
+
+<button type="button" id="btnCamera" class="btn btn-primary" onclick="startCamera()">1. Open Camera</button>
+<button type="submit" id="btnSave" class="btn btn-success" style="display:none;">2. Capture Face & Save</button>
+</form>
+</div>
+
+<div class="footer">Face Reader ©️ Basic</div>
+</div>
+
+<script>
+let SITE_ID = localStorage.getItem('faceReaderSiteId') || 'Site-A';
+document.getElementById('siteInput').value = SITE_ID;
+
+function updateSite() {
+const val = document.getElementById('siteInput').value.trim();
+if(val) {
+SITE_ID = val;
+localStorage.setItem('faceReaderSiteId', SITE_ID);
+initDatabaseReferences();
+showStatus('Switched active site context to: ' + SITE_ID, 'info');
+}
+}
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB1m4mgU_r71POdSD8vxzİq2BrSk7K0M-o",
+  authDomain: "face-reader-basic.firebaseapp.com",
+  databaseURL: "https://face-reader-basic-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "face-reader-basic",
+  storageBucket: "face-reader-basic.appspot.com",
+  messagingSenderId: "645270939984",
+  appId: "1:645270939984:web:aa43a6522527a83941e455"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let operativesRef, faceDescriptorsRef;
+function initDatabaseReferences() {
+operativesRef = db.ref('sites/' + SITE_ID + '/operatives');
+faceDescriptorsRef = db.ref('sites/' + SITE_ID + '/faceDescriptors');
+}
+initDatabaseReferences();
+
+let videoStream = null;
+let modelsLoaded = false;
+
+function showStatus(msg, type) {
+const el = document.getElementById('statusMsg');
+el.textContent = msg;
+el.className = 'status ' + type;
+}
+
+async function startCamera() {
+try {
+showStatus('Loading AI models...', 'info');
+const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model';
+await Promise.all([
+faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+]);
+modelsLoaded = true;
+
+showStatus('Starting camera...', 'info');
+videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+const video = document.getElementById('video');
+video.srcObject = videoStream;
+video.style.display = 'block';
+
+document.getElementById('btnCamera').style.display = 'none';
+document.getElementById('btnSave').style.display = 'block';
+showStatus('Position face clearly in view and click Capture.', 'success');
+} catch (err) {
+showStatus('Camera/Model error: ' + err.message, 'error');
+}
+}
+
+document.getElementById('regForm').addEventListener('submit', async (e) => {
+e.preventDefault();
+if (!modelsLoaded) return showStatus('Models still loading...', 'info');
+
+const name = document.getElementById('name').value.trim();
+const company = document.getElementById('company').value.trim();
+const role = document.getElementById('role').value.trim();
+const location = document.getElementById('location').value.trim();
+const qrCode = document.getElementById('qrCode').value.trim();
+
+showStatus('Detecting face descriptor...', 'info');
+const video = document.getElementById('video');
+
+const detection = await faceapi.detectSingleFace(
+video, 
+new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 })
+).withFaceLandmarks().withFaceDescriptor();
+
+if (!detection) {
+return showStatus('❌ No face detected clearly. Adjust lighting/position and try again.', 'error');
+}
+
+showStatus('Saving profile and face data to database for ' + SITE_ID + '...', 'info');
+
+const opData = {
+name, company, role, location, qrCode,
+createdAt: firebase.database.ServerValue.TIMESTAMP
+};
+
+const newOpRef = operativesRef.push();
+const opId = newOpRef.key;
+await newOpRef.set(opData);
+
+const descriptorArray = Array.from(detection.descriptor);
+await faceDescriptorsRef.child(opId).set({
+name, company, location,
+descriptor: descriptorArray,
+updatedAt: firebase.database.ServerValue.TIMESTAMP
+});
+
+if (videoStream) {
+videoStream.getTracks().forEach(track => track.stop());
+}
+
+showStatus('✅ Successfully registered operative and face!', 'success');
+setTimeout(() => { location.reload(); }, 2000);
+});
+</script>
+</body>
+</html>
