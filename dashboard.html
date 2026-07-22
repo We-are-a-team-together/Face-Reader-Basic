@@ -27,9 +27,8 @@ h2 { margin:0 0 25px; font-size:18px; color:#f1f5f9; font-weight:700; }
 .controls { display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap; align-items: center; }
 .control-group { flex: 1; min-width: 250px; display: flex; flex-direction: column; gap: 6px; }
 .control-group label { font-size: 11px; text-transform: uppercase; color: #94a3b8; font-weight: 700; letter-spacing: 1px; }
-input, select { width: 100%; padding:14px 18px; border-radius:12px; border:2px solid rgba(255,255,255,0.1); background: rgba(15, 23, 42, 0.6); color:#fff; font-size:15px; }
-input:focus, select:focus { outline: none; border-color: #06b6d4; }
-select option { background: #0f172a; color: #fff; }
+input { width: 100%; padding:14px 18px; border-radius:12px; border:2px solid rgba(255,255,255,0.1); background: rgba(15, 23, 42, 0.6); color:#fff; font-size:15px; }
+input:focus { outline: none; border-color: #06b6d4; }
 .btn-row { display: flex; gap: 10px; align-items: flex-end; }
 button { padding:14px 24px; border-radius:12px; border:none; font-weight:700; cursor:pointer; color:#fff; text-transform: uppercase; letter-spacing: 1px; font-size:14px; height: 52px; }
 .btn-refresh { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
@@ -78,10 +77,8 @@ tr:hover { background: rgba(255,255,255,0.05); }
 
 <div class="controls">
 <div class="control-group">
-<label for="locationFilter">Filter by Location / Site Zone</label>
-<select id="locationFilter">
-<option value="">All Locations</option>
-</select>
+<label for="projectFilter">Filter by Project / Site Name</label>
+<input type="text" id="projectFilter" placeholder="e.g. Monument Court Project...">
 </div>
 <div class="control-group">
 <label for="search">Search Operatives / Companies</label>
@@ -101,7 +98,7 @@ tr:hover { background: rgba(255,255,255,0.05); }
 <th>Operative</th>
 <th>Method</th>
 <th>Action</th>
-<th>Location</th>
+<th>Location / Project</th>
 <th>Time</th>
 <th>Elapsed</th>
 </tr>
@@ -152,38 +149,17 @@ if (s < 86400) return Math.floor(s / 3600) + 'h ago';
 return Math.floor(s / 86400) + 'd ago';
 }
 
-function updateLocationDropdown() {
-const select = document.getElementById('locationFilter');
-const currentLocation = select.value;
-const locations = new Set();
-
-// Gather locations from operatives configuration and sign-in logs
-Object.values(allOperatives).forEach(op => { if (op && op.location) locations.add(op.location); });
-allRecords.forEach(r => {
-if (r.location && r.location.address) locations.add(r.location.address);
-if (r.operativeLocation) locations.add(r.operativeLocation);
-});
-
-const sortedLocations = Array.from(locations).filter(l => l && l.trim() !== '').sort();
-let html = '<option value="">All Locations</option>';
-sortedLocations.forEach(loc => {
-html += `<option value="${escapeHtml(loc)}">${escapeHtml(loc)}</option>`;
-});
-select.innerHTML = html;
-if (locations.has(currentLocation)) { select.value = currentLocation; }
-}
-
 function render() {
-const selectedLocation = document.getElementById('locationFilter').value;
+const projectQuery = document.getElementById('projectFilter').value.toLowerCase().trim();
 const today = todayStart();
 const todays = allRecords.filter(r => r.timestamp && r.timestamp >= today);
 
-// Filter status records based on location match if selected
 const filteredStatus = Object.values(statusData).filter(s => {
 if (!s || !s.onSite) return false;
-if (selectedLocation) {
-const opLoc = allOperatives[s.operativeId]?.location || s.location || '';
-if (opLoc !== selectedLocation) return false;
+if (projectQuery) {
+const op = allOperatives[s.operativeId] || {};
+const assignedLoc = (op.location || s.location || '').toLowerCase();
+if (!assignedLoc.includes(projectQuery)) return false;
 }
 return true;
 });
@@ -191,26 +167,29 @@ return true;
 const onSiteNow = filteredStatus.length;
 const totalIns = todays.filter(r => {
 if (r.action !== 'IN') return false;
-if (selectedLocation) {
-const opLoc = allOperatives[r.operativeId]?.location || r.operativeLocation || (r.location && r.location.address) || '';
-if (opLoc !== selectedLocation) return false;
+if (projectQuery) {
+const op = allOperatives[r.operativeId] || {};
+const assignedLoc = (op.location || r.operativeLocation || (r.location && r.location.address) || '').toLowerCase();
+if (!assignedLoc.includes(projectQuery)) return false;
 }
 return true;
 }).length;
 
 const recent = todays.filter(r => {
 if (Date.now() - r.timestamp >= 15 * 60 * 1000) return false;
-if (selectedLocation) {
-const opLoc = allOperatives[r.operativeId]?.location || r.operativeLocation || (r.location && r.location.address) || '';
-if (opLoc !== selectedLocation) return false;
+if (projectQuery) {
+const op = allOperatives[r.operativeId] || {};
+const assignedLoc = (op.location || r.operativeLocation || (r.location && r.location.address) || '').toLowerCase();
+if (!assignedLoc.includes(projectQuery)) return false;
 }
 return true;
 }).length;
 
 const unique = new Set(todays.filter(r => {
-if (selectedLocation) {
-const opLoc = allOperatives[r.operativeId]?.location || r.operativeLocation || (r.location && r.location.address) || '';
-if (opLoc !== selectedLocation) return false;
+if (projectQuery) {
+const op = allOperatives[r.operativeId] || {};
+const assignedLoc = (op.location || r.operativeLocation || (r.location && r.location.address) || '').toLowerCase();
+if (!assignedLoc.includes(projectQuery)) return false;
 }
 return true;
 }).map(r => r.operativeId)).size;
@@ -228,15 +207,16 @@ companyCount[company] = (companyCount[company] || 0) + 1;
 
 const companies = Object.entries(companyCount).sort((a, b) => b[1] - a[1]);
 const grid = document.getElementById('companyGrid');
-grid.innerHTML = companies.length ? companies.map(([c, n]) => `<div class="company-item"><div class="company-name">${escapeHtml(c)}</div><div class="company-count">${n}</div></div>`).join('') : '<div class="empty">No operatives on site for this location filter</div>';
+grid.innerHTML = companies.length ? companies.map(([c, n]) => `<div class="company-item"><div class="company-name">${escapeHtml(c)}</div><div class="company-count">${n}</div></div>`).join('') : '<div class="empty">No operatives on site for this project filter</div>';
 
 const tbody = document.getElementById('tbody');
 const filter = document.getElementById('search').value.toLowerCase();
 
 let records = todays.filter(r => {
-if (selectedLocation) {
-const opLoc = allOperatives[r.operativeId]?.location || r.operativeLocation || (r.location && r.location.address) || '';
-if (opLoc !== selectedLocation) return false;
+if (projectQuery) {
+const op = allOperatives[r.operativeId] || {};
+const assignedLoc = (op.location || r.operativeLocation || (r.location && r.location.address) || '').toLowerCase();
+if (!assignedLoc.includes(projectQuery)) return false;
 }
 const name = r.operativeName ? r.operativeName.toLowerCase() : '';
 const company = r.operativeCompany ? r.operativeCompany.toLowerCase() : '';
@@ -254,10 +234,12 @@ const time = new Date(r.timestamp).toLocaleTimeString();
 const methodClass = r.method === 'FACE' ? 'face' : 'qr';
 const actionClass = r.action === 'IN' ? 'in' : 'out';
 
-let locationHtml = '<span style="color:#64748b">No location</span>';
-if (r.location && r.location.address) {
-const mapUrl = `https://www.google.com/maps?q=${r.location.lat},${r.location.lng}`;
-locationHtml = `<span class="location-icon">📍</span><span class="location-cell" title="${escapeHtml(r.location.address)}">${escapeHtml(r.location.address)}</span><a href="${mapUrl}" target="_blank" class="map-link"> View</a>`;
+const op = allOperatives[r.operativeId] || {};
+const projectText = op.location || r.operativeLocation || (r.location ? r.location.address : '');
+
+let locationHtml = '<span style="color:#64748b">No project assigned</span>';
+if (projectText) {
+locationHtml = `<span class="location-icon">🏗️</span><span class="location-cell" title="${escapeHtml(projectText)}">${escapeHtml(projectText)}</span>`;
 } else if (r.location && r.location.lat) {
 const mapUrl = `https://www.google.com/maps?q=${r.location.lat},${r.location.lng}`;
 locationHtml = `<span class="location-cell">${r.location.lat.toFixed(4)}, ${r.location.lng.toFixed(4)}</span><a href="${mapUrl}" target="_blank" class="map-link">🗺 View</a>`;
@@ -278,47 +260,44 @@ return `<tr>
 signinsRef.on('value', snap => {
 allRecords = [];
 snap.forEach(child => { const val = child.val(); if(val) allRecords.push({ id: child.key, ...val }); });
-updateLocationDropdown();
 render();
 });
 
 statusRef.on('value', snap => {
 statusData = {};
 snap.forEach(child => { statusData[child.key] = child.val(); });
-updateLocationDropdown();
 render();
 });
 
 operativesRef.on('value', snap => {
 allOperatives = {};
 snap.forEach(child => { allOperatives[child.key] = child.val(); });
-updateLocationDropdown();
 render();
 });
 
 document.getElementById('search').addEventListener('input', render);
-document.getElementById('locationFilter').addEventListener('change', render);
+document.getElementById('projectFilter').addEventListener('input', render);
 
 function exportCSV() {
-const selectedLocation = document.getElementById('locationFilter').value;
+const projectQuery = document.getElementById('projectFilter').value.toLowerCase().trim();
 const today = todayStart();
 const data = allRecords.filter(r => {
 if (!r.timestamp || r.timestamp < today) return false;
-if (selectedLocation) {
-const opLoc = allOperatives[r.operativeId]?.location || r.operativeLocation || (r.location && r.location.address) || '';
-if (opLoc !== selectedLocation) return false;
+if (projectQuery) {
+const op = allOperatives[r.operativeId] || {};
+const assignedLoc = (op.location || r.operativeLocation || (r.location && r.location.address) || '').toLowerCase();
+if (!assignedLoc.includes(projectQuery)) return false;
 }
 return true;
 });
 if (data.length === 0) { alert('No records to export'); return; }
-let csv = 'Date,Time,Name,Company,Method,Action,Location,Lat,Lng\n';
+let csv = 'Date,Time,Name,Company,Method,Action,ProjectLocation\n';
 data.sort((a, b) => a.timestamp - b.timestamp).forEach(r => {
 const date = new Date(r.timestamp).toISOString().split('T')[0];
 const time = new Date(r.timestamp).toLocaleTimeString();
-const loc = r.location ? r.location.address || `${r.location.lat},${r.location.lng}` : '';
-const lat = r.location ? r.location.lat : '';
-const lng = r.location ? r.location.lng : '';
-csv += `"${date}","${time}","${r.operativeName || ''}","${r.operativeCompany || ''}","${r.method || ''}","${r.action || ''}","${loc}","${lat}","${lng}"\n`;
+const op = allOperatives[r.operativeId] || {};
+const proj = op.location || r.operativeLocation || (r.location ? r.location.address : '') || '';
+csv += `"${date}","${time}","${r.operativeName || ''}","${r.operativeCompany || ''}","${r.method || ''}","${r.action || ''}","${proj}"\n`;
 });
 const blob = new Blob([csv], { type: 'text/csv' });
 const url = URL.createObjectURL(blob);
