@@ -19,27 +19,30 @@ header { display:flex; justify-content:space-between; align-items:center; paddin
 .green { color:#10b981; } .blue { color:#06b6d4; } .amber { color:#f97316; } .purple { color:#a855f7; }
 .label { font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:2px; }
 .card { background: rgba(30, 41, 59, 0.8); padding:30px; border-radius:20px; margin-bottom:25px; }
-h2 { margin:0 0 25px; font-size:18px; color:#f1f5f9; }
 .controls { display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap; align-items: center; }
-input, select { padding:14px 18px; border-radius:12px; border:2px solid rgba(255,255,255,0.1); background: rgba(15, 23, 42, 0.6); color:#fff; font-size:15px; }
-input { flex:1; min-width:250px; }
+.search-container { position: relative; flex:1; min-width:250px; }
+input, select { padding:14px 18px; border-radius:12px; border:2px solid rgba(255,255,255,0.1); background: rgba(15, 23, 42, 0.6); color:#fff; font-size:15px; width: 100%; }
 input:focus, select:focus { outline: none; border-color: #06b6d4; }
+.search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 18px; pointer-events: none; }
 select { min-width: 200px; cursor: pointer; }
 button { padding:14px 24px; border-radius:12px; border:none; font-weight:700; cursor:pointer; color:#fff; }
 .btn-refresh { background: linear-gradient(135deg, #6366f1, #4f46e5); }
 .btn-export { background: linear-gradient(135deg, #06b6d4, #0891b2); }
 .btn-clear { background: linear-gradient(135deg, #ef4444, #dc2626); }
-table { width:100%; }
-th { background: rgba(15, 23, 42, 0.8); padding:16px; text-align:left; font-size:11px; color:#94a3b8; text-transform:uppercase; font-weight:700; }
-td { padding:18px 16px; border-bottom:1px solid rgba(255,255,255,0.05); }
-tr:hover { background: rgba(255,255,255,0.05); }
-.method-badge, .action-badge { padding:6px 14px; border-radius:20px; font-size:11px; font-weight:700; display: inline-block; }
+table { width:100%; border-collapse: collapse; }
+th { background: rgba(15, 23, 42, 0.9); padding:16px; text-align:left; font-size:12px; color:#94a3b8; text-transform:uppercase; font-weight:700; border-bottom: 2px solid #06b6d4; }
+td { padding:16px; border-bottom:1px solid rgba(255,255,255,0.05); vertical-align: top; }
+tr:hover { background: rgba(255,255,255,0.03); }
+.operative-name { font-weight:700; font-size:15px; color:#fff; }
+.operative-company { font-size:12px; color:#06b6d4; margin-top:4px; }
+.location-text { color:#a855f7; font-size:13px; }
+.method-badge, .action-badge { padding:6px 12px; border-radius:15px; font-size:11px; font-weight:700; display: inline-block; }
 .face { background: rgba(6, 182, 212, 0.2); color:#22d3ee; }
 .qr { background: rgba(140, 142, 144, 0.2); color:#8C8E90; }
 .in { background: rgba(16, 185, 129, 0.2); color:#34d399; }
 .out { background: rgba(249, 115, 22, 0.2); color:#fbbf24; }
-.time { color:#94a3b8; font-family:'Courier New', monospace; font-size:14px; }
-.location-cell { font-size:12px; color:#a5b4fc; }
+.time { color:#94a3b8; font-family:'Courier New', monospace; font-size:13px; }
+.gps-info { font-size:11px; color:#a5b4fc; }
 .map-link { color:#06b6d4; text-decoration:none; font-size:11px; margin-left:5px; }
 .empty { text-align:center; color:#64748b; padding:50px; font-size:16px; }
 .footer { text-align:center; font-size:12px; color:#8C8E90; margin-top:40px; padding:25px 0; border-top: 1px solid rgba(255,255,255,0.1); }
@@ -63,7 +66,10 @@ tr:hover { background: rgba(255,255,255,0.05); }
 <select id="locationFilter" onchange="render()">
 <option value="all">All Locations</option>
 </select>
-<input type="text" id="searchInput" placeholder="🔍 Search by name, company, or method..." onkeyup="render()">
+<div class="search-container">
+<span class="search-icon">🔍</span>
+<input type="text" id="searchInput" placeholder="Search by name, company..." onkeyup="render()" style="padding-left: 50px;">
+</div>
 <button class="btn-refresh" onclick="location.reload()">↻ Refresh</button>
 <button class="btn-export" onclick="exportCSV()">Export CSV</button>
 <button class="btn-clear" onclick="clearToday()">Clear Today</button>
@@ -74,15 +80,17 @@ tr:hover { background: rgba(255,255,255,0.05); }
 <thead>
 <tr>
 <th>Operative</th>
-<th>Assigned Location</th>
+<th>Company</th>
+<th>Location</th>
 <th>Method</th>
 <th>Action</th>
 <th>GPS Proof</th>
 <th>Time</th>
-<th>Elapsed</th>
 </tr>
 </thead>
-<tbody id="tbody"><tr><td colspan="7" class="empty">Connecting to database...</td></tr></tbody>
+<tbody id="tbody">
+<tr><td colspan="7" class="empty">Loading data from database...</td></tr>
+</tbody>
 </table>
 </div>
 
@@ -104,9 +112,11 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const signinsRef = db.ref('signins');
 const statusRef = db.ref('status');
+const usersRef = db.ref('users');
 
 let allRecords = [];
 let statusData = {};
+let allLocations = new Set(['all']); // Always keep 'all' in the list
 
 function todayStart() {
 const d = new Date();
@@ -133,7 +143,7 @@ const today = todayStart();
 const locFilter = document.getElementById('locationFilter').value;
 const searchText = document.getElementById('searchInput').value.toLowerCase();
 
-// Filter today's records
+// Get today's records
 let todays = allRecords.filter(r => r.timestamp && r.timestamp >= today);
 
 // Apply location filter
@@ -141,42 +151,62 @@ if (locFilter !== 'all') {
 todays = todays.filter(r => r.assignedLocation === locFilter);
 }
 
-// Apply search filter
+// Apply search
 if (searchText.trim() !== '') {
 todays = todays.filter(r => {
 const name = (r.operativeName || '').toLowerCase();
 const company = (r.operativeCompany || '').toLowerCase();
-const method = (r.method || '').toLowerCase();
 const location = (r.assignedLocation || '').toLowerCase();
-return name.includes(searchText) || company.includes(searchText) || method.includes(searchText) || location.includes(searchText);
+return name.includes(searchText) || company.includes(searchText) || location.includes(searchText);
 });
 }
 
-// Update stats
-const onSiteNow = Object.values(statusData).filter(s => s && s.onSite).length;
-const totalIns = todays.filter(r => r.action === 'IN').length;
-const recent = todays.filter(r => Date.now() - r.timestamp < 15 * 60 * 1000).length;
-const unique = new Set(todays.map(r => r.operativeId)).size;
+// Calculate stats from STATUS (who's actually on site NOW)
+let onSiteCount = 0;
+Object.values(statusData).forEach(s => {
+if (s && s.onSite === true) {
+onSiteCount++;
+}
+});
 
-document.getElementById('onsite').textContent = onSiteNow;
-document.getElementById('total').textContent = totalIns;
-document.getElementById('recent').textContent = recent;
-document.getElementById('unique').textContent = unique;
+document.getElementById('onsite').textContent = onSiteCount;
+document.getElementById('total').textContent = todays.filter(r => r.action === 'IN').length;
+document.getElementById('recent').textContent = todays.filter(r => Date.now() - r.timestamp < 15 * 60 * 1000).length;
+document.getElementById('unique').textContent = new Set(todays.map(r => r.operativeId)).size;
 
-// Update location dropdown
+// Update location dropdown - populate from ALL historical records, not just current status
 const select = document.getElementById('locationFilter');
 const currentVal = select.value;
-const uniqueLocations = new Set(['all']);
-allRecords.forEach(r => { if(r.assignedLocation) uniqueLocations.add(r.assignedLocation); });
 
+// Collect locations from all records
+allRecords.forEach(r => {
+if(r.assignedLocation && r.assignedLocation !== 'Unassigned') {
+allLocations.add(r.assignedLocation);
+}
+});
+
+// Also check status for current locations
+Object.values(statusData).forEach(s => {
+if(s && s.assignedLocation && s.assignedLocation !== 'Unassigned') {
+allLocations.add(s.assignedLocation);
+}
+});
+
+// Rebuild dropdown
 select.innerHTML = '';
-uniqueLocations.forEach(loc => {
+Array.from(allLocations).sort().forEach(loc => {
 const opt = document.createElement('option');
 opt.value = loc;
 opt.textContent = loc === 'all' ? 'All Locations' : loc;
 select.appendChild(opt);
 });
-select.value = currentVal || 'all';
+
+// Restore selection if it still exists
+if (allLocations.has(currentVal)) {
+select.value = currentVal;
+} else {
+select.value = 'all';
+}
 
 // Render table
 const tbody = document.getElementById('tbody');
@@ -186,6 +216,7 @@ tbody.innerHTML = '<tr><td colspan="7" class="empty">No records found</td></tr>'
 return;
 }
 
+// Sort by newest first
 todays.sort((a, b) => b.timestamp - a.timestamp);
 
 tbody.innerHTML = todays.map(r => {
@@ -193,39 +224,36 @@ const time = new Date(r.timestamp).toLocaleTimeString();
 const methodClass = r.method === 'FACE' ? 'face' : 'qr';
 const actionClass = r.action === 'IN' ? 'in' : 'out';
 
-let locationHtml = '<span style="color:#64748b">No GPS</span>';
+let gpsHtml = '<span style="color:#64748b">No GPS</span>';
 if (r.location && r.location.address) {
 const mapUrl = `https://www.google.com/maps?q=${r.location.lat},${r.location.lng}`;
-locationHtml = `<span class="location-cell">${escapeHtml(r.location.address)}</span><a href="${mapUrl}" target="_blank" class="map-link">🗺️</a>`;
+gpsHtml = `<div class="gps-info">${escapeHtml(r.location.address)}<a href="${mapUrl}" target="_blank" class="map-link">🗺️</a></div>`;
 } else if (r.location && r.location.lat) {
 const mapUrl = `https://www.google.com/maps?q=${r.location.lat},${r.location.lng}`;
-locationHtml = `<span class="location-cell">${r.location.lat.toFixed(4)}, ${r.location.lng.toFixed(4)}</span><a href="${mapUrl}" target="_blank" class="map-link">🗺️</a>`;
+gpsHtml = `<div class="gps-info">${r.location.lat.toFixed(4)}, ${r.location.lng.toFixed(4)}<a href="${mapUrl}" target="_blank" class="map-link">🗺️</a></div>`;
 }
 
 return `<tr>
-<td>
-<div style="font-weight:700;">${escapeHtml(r.operativeName)}</div>
-<div style="font-size:12px; color:#06b6d4;">${escapeHtml(r.operativeCompany)}</div>
-</td>
-<td><div style="color:#a855f7;">${escapeHtml(r.assignedLocation || 'Unassigned')}</div></td>
-<td><span class="method-badge ${methodClass}">${r.method}</span></td>
-<td><span class="action-badge ${actionClass}">${r.action}</span></td>
-<td>${locationHtml}</td>
-<td class="time">${time}</td>
-<td class="time">${timeAgo(r.timestamp)}</td>
+<td><div class="operative-name">${escapeHtml(r.operativeName || 'Unknown')}</div></td>
+<td><div class="operative-company">${escapeHtml(r.operativeCompany || 'Unknown')}</div></td>
+<td><div class="location-text">${escapeHtml(r.assignedLocation || 'Unassigned')}</div></td>
+<td><span class="method-badge ${methodClass}">${r.method || 'Unknown'}</span></td>
+<td><span class="action-badge ${actionClass}">${r.action || 'Unknown'}</span></td>
+<td>${gpsHtml}</td>
+<td><div class="time">${time}</div><div class="time" style="font-size:11px">${timeAgo(r.timestamp)}</div></td>
 </tr>`;
 }).join('');
 }
 
-// Listen for database changes
+// Real-time database listeners
 signinsRef.on('value', snap => {
-console.log(' Received signins data');
+console.log('📥 Received signins data');
 allRecords = [];
 snap.forEach(child => {
 const val = child.val();
 if(val) allRecords.push({ id: child.key, ...val });
 });
-console.log('Total records:', allRecords.length);
+console.log('Total sign-in records:', allRecords.length);
 render();
 });
 
@@ -233,14 +261,33 @@ statusRef.on('value', snap => {
 console.log('📥 Received status data');
 statusData = {};
 snap.forEach(child => {
-statusData[child.key] = child.val();
+const val = child.val();
+// Only count if onSite is explicitly true
+if (val && val.onSite === true) {
+statusData[child.key] = val;
+}
+});
+console.log('Currently on site:', Object.keys(statusData).length);
+render();
+});
+
+// Also listen to users to get all possible locations
+usersRef.on('value', snap => {
+console.log('📥 Received users data');
+snap.forEach(child => {
+const user = child.val();
+if (user && user.location && user.location !== 'Unassigned') {
+allLocations.add(user.location);
+}
 });
 render();
 });
 
 function exportCSV() {
 const today = todayStart();
-const data = allRecords.filter(r => r.timestamp && r.timestamp >= today);
+const locFilter = document.getElementById('locationFilter').value;
+let data = allRecords.filter(r => r.timestamp && r.timestamp >= today);
+if (locFilter !== 'all') data = data.filter(r => r.assignedLocation === locFilter);
 
 if (data.length === 0) {
 alert('No records to export');
@@ -253,24 +300,35 @@ csv += `"${new Date(r.timestamp).toISOString().split('T')[0]}","${new Date(r.tim
 });
 
 const blob = new Blob([csv], { type: 'text/csv' });
-const url = URL.createObjectURL(blob);
 const a = document.createElement('a');
-a.href = url;
+a.href = URL.createObjectURL(blob);
 a.download = `face-reader-${new Date().toISOString().split('T')[0]}.csv`;
 a.click();
 }
 
 async function clearToday() {
-if (!confirm('Delete all today\'s records?')) return;
+if (!confirm('⚠️ Delete ALL today\'s records and reset status?')) return;
 const today = todayStart();
 const updates = {};
+
+// Delete today's sign-ins
 allRecords.forEach(r => {
 if (r.timestamp && r.timestamp >= today) {
 updates['signins/' + r.id] = null;
 }
 });
+
+// Reset ALL status to off-site
+Object.keys(statusData).forEach(userId => {
+updates['status/' + userId] = {
+onSite: false,
+lastAction: 'CLEARED',
+lastTimestamp: firebase.database.ServerValue.TIMESTAMP
+};
+});
+
 await db.ref().update(updates);
-alert('Cleared!');
+alert('✅ Dashboard cleared!');
 location.reload();
 }
 
