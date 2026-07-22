@@ -71,7 +71,7 @@ tr:hover { background: rgba(255,255,255,0.05); }
 </div>
 
 <div class="card">
-<h2> Operatives by Company</h2>
+<h2>Operatives by Company</h2>
 <div class="company-grid" id="companyGrid"><div class="empty">Loading...</div></div>
 </div>
 
@@ -79,7 +79,7 @@ tr:hover { background: rgba(255,255,255,0.05); }
 <select id="locationFilter" onchange="render()">
 <option value="all">All Locations</option>
 </select>
-<input type="text" id="search" placeholder=" Filter by name, company, or method...">
+<input type="text" id="search" placeholder="Filter by name, company, or method... (type to search)" oninput="render()">
 <button class="btn-refresh" onclick="location.reload()">↻ Refresh</button>
 <button class="btn-export" onclick="exportCSV()"> Export CSV</button>
 <button class="btn-clear" onclick="clearToday()"> Clear Today</button>
@@ -102,81 +102,22 @@ tr:hover { background: rgba(255,255,255,0.05); }
 </table>
 </div>
 
-<div class="footer">Face reader Basic - We are a team together Ltd</div>
+<div class="footer">Face Reader Basic - We are a team together Ltd ©️ 2026</div>
 </div>
 
 <script>
-const firebaseConfig = {
-apiKey: "AIzaSyB1m4mgU_r71POdSD8vxzIq2BrSk7K0M-o",
-authDomain: "face-reader-basic.firebaseapp.com",
-databaseURL: "https://face-reader-basic-default-rtdb.europe-west1.firebasedatabase.app",
-projectId: "face-reader-basic",
-storageBucket: "face-reader-basic.firebasestorage.app",
-messagingSenderId: "645270939984",
-appId: "1:645270939984:web:aa43a6522527a83941e455"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const signinsRef = db.ref('signins');
-const statusRef = db.ref('status');
-
-let allRecords = [];
-let statusData = {};
-
-function todayStart() { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }
-
-function escapeHtml(text) {
-if (!text) return '';
-const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-return String(text).replace(/[&<>"']/g, m => map[m]);
-}
-
-function timeAgo(ts) {
-if (!ts) return 'unknown';
-const s = Math.floor((Date.now() - ts) / 1000);
-if (s < 60) return s + 's ago';
-if (s < 3600) return Math.floor(s / 60) + 'm ago';
-if (s < 86400) return Math.floor(s / 3600) + 'h ago';
-return Math.floor(s / 86400) + 'd ago';
-}
-
-function render() {
-const today = todayStart();
-const locFilter = document.getElementById('locationFilter').value;
-
-let todays = allRecords.filter(r => r.timestamp && r.timestamp >= today);
-if (locFilter !== 'all') {
-todays = todays.filter(r => r.assignedLocation === locFilter);
-}
-
-const onSiteNow = Object.values(statusData).filter(s => s && s.onSite && (locFilter === 'all' || s.assignedLocation === locFilter)).length;
-const totalIns = todays.filter(r => r.action === 'IN').length;
-const recent = todays.filter(r => Date.now() - r.timestamp < 15 * 60 * 1000).length;
-const unique = new Set(todays.map(r => r.operativeId)).size;
-
-document.getElementById('onsite').textContent = onSiteNow;
-document.getElementById('total').textContent = totalIns;
-document.getElementById('recent').textContent = recent;
-document.getElementById('unique').textContent = unique;
-
-const companyCount = {};
-Object.values(statusData).forEach(s => {
-if (s && s.onSite && (locFilter === 'all' || s.assignedLocation === locFilter)) {
-const company = s.company || 'Unknown';
-companyCount[company] = (companyCount[company] || 0) + 1;
-}
-});
-
-const companies = Object.entries(companyCount).sort((a, b) => b[1] - a[1]);
-const grid = document.getElementById('companyGrid');
-grid.innerHTML = companies.length ? companies.map(([c, n]) => `<div class="company-item"><div class="company-name">${escapeHtml(c)}</div><div class="company-count">${n}</div></div>`).join('') : '<div class="empty">No operatives on site</div>';
-
-// Populate Location Filter dynamically
+// Populate Location Filter dynamically from database
 const select = document.getElementById('locationFilter');
 const currentVal = select.value;
 const uniqueLocations = new Set(['all']);
-allRecords.forEach(r => { if(r.assignedLocation) uniqueLocations.add(r.assignedLocation); });
+allRecords.forEach(r => {
+if(r.assignedLocation) uniqueLocations.add(r.assignedLocation);
+});
+
+// Also check status for current locations
+Object.values(statusData).forEach(s => {
+if(s && s.assignedLocation) uniqueLocations.add(s.assignedLocation);
+});
 
 select.innerHTML = '';
 uniqueLocations.forEach(loc => {
@@ -194,7 +135,9 @@ let records = todays.filter(r => {
 const name = r.operativeName ? r.operativeName.toLowerCase() : '';
 const company = r.operativeCompany ? r.operativeCompany.toLowerCase() : '';
 const method = r.method ? r.method.toLowerCase() : '';
-return name.includes(filter) || company.includes(filter) || method.includes(filter);
+const location = r.assignedLocation ? r.assignedLocation.toLowerCase() : '';
+return name.includes(filter) || company.includes(filter) || method.includes(filter) || location.includes(filter);
+
 });
 
 records.sort((a, b) => b.timestamp - a.timestamp);
@@ -211,7 +154,7 @@ let locationHtml = '<span style="color:#64748b">No GPS data</span>';
 if (r.location) {
 if (r.location.address) {
 const mapUrl = `https://www.google.com/maps?q=${r.location.lat},${r.location.lng}`;
-locationHtml = `<span class="location-icon">📍</span><span class="location-cell" title="${escapeHtml(r.location.address)}">${escapeHtml(r.location.address)}</span><a href="${mapUrl}" target="_blank" class="map-link"> View</a>`;
+locationHtml = `<span class="location-icon"></span><span class="location-cell" title="${escapeHtml(r.location.address)}">${escapeHtml(r.location.address)}</span><a href="${mapUrl}" target="_blank" class="map-link"> View</a>`;
 } else if (r.location.lat && r.location.lng) {
 const mapUrl = `https://www.google.com/maps?q=${r.location.lat},${r.location.lng}`;
 locationHtml = `<span class="location-cell">${r.location.lat.toFixed(4)}, ${r.location.lng.toFixed(4)}</span><a href="${mapUrl}" target="_blank" class="map-link"> View</a>`;
@@ -242,8 +185,6 @@ statusData = {};
 snap.forEach(child => { statusData[child.key] = child.val(); });
 render();
 });
-
-document.getElementById('search').addEventListener('input', render);
 
 function exportCSV() {
 const today = todayStart();
