@@ -116,7 +116,7 @@ const usersRef = db.ref('users');
 
 let allRecords = [];
 let statusData = {};
-let allLocations = new Set(['all']); // Always keep 'all' in the list
+let allLocations = new Set(['all']);
 
 function todayStart() {
 const d = new Date();
@@ -143,15 +143,12 @@ const today = todayStart();
 const locFilter = document.getElementById('locationFilter').value;
 const searchText = document.getElementById('searchInput').value.toLowerCase();
 
-// Get today's records
 let todays = allRecords.filter(r => r.timestamp && r.timestamp >= today);
 
-// Apply location filter
 if (locFilter !== 'all') {
 todays = todays.filter(r => r.assignedLocation === locFilter);
 }
 
-// Apply search
 if (searchText.trim() !== '') {
 todays = todays.filter(r => {
 const name = (r.operativeName || '').toLowerCase();
@@ -161,7 +158,6 @@ return name.includes(searchText) || company.includes(searchText) || location.inc
 });
 }
 
-// Calculate stats from STATUS (who's actually on site NOW)
 let onSiteCount = 0;
 Object.values(statusData).forEach(s => {
 if (s && s.onSite === true) {
@@ -174,25 +170,21 @@ document.getElementById('total').textContent = todays.filter(r => r.action === '
 document.getElementById('recent').textContent = todays.filter(r => Date.now() - r.timestamp < 15 * 60 * 1000).length;
 document.getElementById('unique').textContent = new Set(todays.map(r => r.operativeId)).size;
 
-// Update location dropdown - populate from ALL historical records, not just current status
 const select = document.getElementById('locationFilter');
 const currentVal = select.value;
 
-// Collect locations from all records
 allRecords.forEach(r => {
 if(r.assignedLocation && r.assignedLocation !== 'Unassigned') {
 allLocations.add(r.assignedLocation);
 }
 });
 
-// Also check status for current locations
 Object.values(statusData).forEach(s => {
 if(s && s.assignedLocation && s.assignedLocation !== 'Unassigned') {
 allLocations.add(s.assignedLocation);
 }
 });
 
-// Rebuild dropdown
 select.innerHTML = '';
 Array.from(allLocations).sort().forEach(loc => {
 const opt = document.createElement('option');
@@ -201,14 +193,12 @@ opt.textContent = loc === 'all' ? 'All Locations' : loc;
 select.appendChild(opt);
 });
 
-// Restore selection if it still exists
 if (allLocations.has(currentVal)) {
 select.value = currentVal;
 } else {
 select.value = 'all';
 }
 
-// Render table
 const tbody = document.getElementById('tbody');
 
 if (todays.length === 0) {
@@ -216,7 +206,6 @@ tbody.innerHTML = '<tr><td colspan="7" class="empty">No records found</td></tr>'
 return;
 }
 
-// Sort by newest first
 todays.sort((a, b) => b.timestamp - a.timestamp);
 
 tbody.innerHTML = todays.map(r => {
@@ -245,7 +234,6 @@ return `<tr>
 }).join('');
 }
 
-// Real-time database listeners
 signinsRef.on('value', snap => {
 console.log('📥 Received signins data');
 allRecords = [];
@@ -262,16 +250,14 @@ console.log('📥 Received status data');
 statusData = {};
 snap.forEach(child => {
 const val = child.val();
-// Only count if onSite is explicitly true
 if (val && val.onSite === true) {
 statusData[child.key] = val;
 }
 });
-console.log('Currently on site':, Object.keys(statusData).length);
+console.log('Currently on site:', Object.keys(statusData).length);
 render();
 });
 
-// Also listen to users to get all possible locations
 usersRef.on('value', snap => {
 console.log('📥 Received users data');
 snap.forEach(child => {
@@ -311,14 +297,12 @@ if (!confirm('⚠️ Delete ALL today\'s records and reset status?')) return;
 const today = todayStart();
 const updates = {};
 
-// Delete today's sign-ins
 allRecords.forEach(r => {
 if (r.timestamp && r.timestamp >= today) {
 updates['signins/' + r.id] = null;
 }
 });
 
-// Reset ALL status to off-site
 Object.keys(statusData).forEach(userId => {
 updates['status/' + userId] = {
 onSite: false,
