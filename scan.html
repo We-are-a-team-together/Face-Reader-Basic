@@ -19,7 +19,8 @@ header { text-align:center; padding:30px 0; margin-bottom:20px; }
 h2 { margin:0 0 20px; font-size:13px; color:#8C8E90; text-transform:uppercase; letter-spacing:2px; font-weight:700; }
 button { width:100%; padding:18px; margin:10px 0; border-radius:12px; border:none; font-weight:700; cursor:pointer; color:#fff; font-size:16px; text-transform: uppercase; letter-spacing: 1px; transition: all 0.3s; }
 .btn-face { background: #06b6d4; }
-.btn-face:hover { background: #0891b2; }
+.btn-face:hover:not(:disabled) { background: #0891b2; }
+.btn-face:disabled { background: #4b5563; cursor: not-allowed; }
 .btn-capture { background: #10b981; display:none; }
 .btn-capture:hover { background: #059669; }
 .btn-capture.out { background: #ef4444; }
@@ -33,6 +34,7 @@ button { width:100%; padding:18px; margin:10px 0; border-radius:12px; border:non
 .status-scanning { background: #3d3520; color:#fbbf24; border-color: #fbbf24; }
 .status-success { background: #1e3a2a; color:#34d399; border-color: #34d399; }
 .status-error { background: #3d1f1f; color:#f87171; border-color: #f87171; }
+.status-loading { background: #1e3a8a; color:#93c5fd; border-color: #3b82f6; }
 .location-info { background: #2d2d40; color:#a5b4fc; padding:12px; border-radius:10px; margin-top:15px; font-size:13px; display:none; border: 1px solid #4040a0; }
 .footer { text-align:center; font-size:12px; color:#8C8E90; margin-top:30px; padding:20px 0; border-top: 1px solid #404040; }
 .privacy-notice { background: #1e3a8a; border: 1px solid #06b6d4; padding:15px; border-radius:10px; margin-bottom:20px; font-size:12px; color:#93c5fd; text-align:center; }
@@ -47,10 +49,10 @@ button { width:100%; padding:18px; margin:10px 0; border-radius:12px; border:non
 
 <div class="privacy-notice">🔒 Location tracking enabled for attendance verification</div>
 
-<div id="statusBox" class="status-box status-idle">Loading models...</div>
+<div id="statusBox" class="status-box status-loading">Loading models...</div>
 
 <div class="card">
-<h2>🎥 Face Recognition</h2>
+<h2> Face Recognition</h2>
 <button type="button" class="btn-face" id="btnFace" onclick="startFaceScan()" disabled>Start Face Scan</button>
 <button type="button" class="btn-capture" id="btnCapture" onclick="confirmSignin()">Sign In</button>
 <video id="video" autoplay muted playsinline></video>
@@ -63,7 +65,7 @@ button { width:100%; padding:18px; margin:10px 0; border-radius:12px; border:non
 <button type="button" class="btn-qr" id="btnQr" onclick="toggleQrScan()">Open Camera for QR</button>
 </div>
 
-<div class="footer">Face reader Basic - We are a team together Ltd</div>
+<div class="footer">Face Reader Basic - We are a team together Ltd ©️ 2026</div>
 </div>
 
 <script>
@@ -87,9 +89,11 @@ const faceDescriptorsRef = db.ref('faceDescriptors');
 let isFaceScanning = false, isQrScanning = false, videoStream = null, qrScanner = null;
 let faceDescriptors = {}, operatives = {}, modelsLoaded = false;
 let currentLocation = null;
-let pendingSignin = null; // Stores matched user data before confirmation
+let pendingSignin = null;
 
 async function loadModels() {
+try {
+console.log('Loading face recognition models...');
 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model';
 await Promise.all([
 faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
@@ -97,49 +101,30 @@ faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
 faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
 ]);
 modelsLoaded = true;
+console.log('✅ Models loaded successfully!');
 document.getElementById('statusBox').className = 'status-box status-success';
 document.getElementById('statusBox').textContent = '✅ Ready to connect';
 document.getElementById('btnFace').disabled = false;
-const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
-headers: { 'User-Agent': 'Face Reader Attendance System' }
-});
-const data = await response.json();
-if (data.display_name) {
-const addr = data.address;
-const parts = [];
-if (addr.road) parts.push(addr.road);
-if (addr.suburb) parts.push(addr.suburb);
-if (addr.city || addr.town || addr.village) parts.push(addr.city || addr.town || addr.village);
-if (addr.postcode) parts.push(addr.postcode);
-resolve({ lat, lng, accuracy, address: parts.join(', ') || data.display_name });
-} else {
-resolve({ lat, lng, accuracy, address: `${lat.toFixed(4)}, ${lng.toFixed(4)}` });
-}
 } catch (err) {
-resolve({ lat, lng, accuracy, address: `${lat.toFixed(4)}, ${lng.toFixed(4)}` });
+console.error('❌ Model loading error:', err);
+document.getElementById('statusBox').className = 'status-box status-error';
+document.getElementById('statusBox').textContent = 'Error loading models. Refresh page.';
 }
-},
-(error) => {
-hideLocationInfo();
-reject(error);
-},
-{ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-);
-});
 }
 
-async function startFaceScan() {
-if (!modelsLoaded) {
-await loadModels();
-}
-if (isQrScanning) stopQrScan();
+faceDescriptorsRef.on('value', snap => {
+faceDescriptors = {};
+snap.forEach(child => { faceDescriptors[child.key] = child.val(); });
+console.log('📥 Loaded', Object.keys(faceDescriptors).length, 'face descriptors');
+});
 
-try {
-currentLocation = await getLocation();
-} catch (err) {
-showStatus('⚠️ Location access denied.', 'error');
+operativesRef.on('value', snap => {
+operatives = {};
+snap.forEach(child => { operatives[child.key] = child.val(); });
+console.log('📥 Loaded', Object.keys(operatives).length, 'operatives');
+console.warn('Location error:', err);
+showStatus('⚠️ Location access denied. Continuing without GPS.', 'error');
 setTimeout(() => showStatus('Ready to connect', 'idle'), 3000);
-return;
 }
 
 isFaceScanning = true;
@@ -159,10 +144,12 @@ video.play();
 r();
 };
 });
+console.log('📹 Camera started successfully');
 detectFaceLoop();
 } catch (err) {
+console.error('❌ Camera error:', err);
 hideLocationInfo();
-showStatus('❌ Camera error', 'error');
+showStatus('❌ Camera error. Please allow camera access.', 'error');
 stopFaceScan();
 }
 }
@@ -191,16 +178,15 @@ setTimeout(detectFaceLoop, 500);
 return;
 }
 
-// EXACT PROVEN FACE RECOGNITION LINE
 const detection = await faceapi.detectSingleFace(
 video,
 new faceapi.TinyFaceDetectorOptions()
 ).withFaceLandmarks().withFaceDescriptor();
 
 if (detection) {
+console.log('✅ Face detected!');
 const result = findBestMatch(detection.descriptor);
 if (result.match) {
-// Pause scanning and check status to update button dynamically
 isFaceScanning = false;
 
 const statusSnap = await statusRef.child(result.match.id).once('value');
@@ -223,6 +209,7 @@ btnCapture.style.display = 'block';
 
 showStatus(`Face recognized: ${result.match.name}. Click to ${action}.`, 'scanning');
 } else {
+console.log('❌ Face not in database');
 hideLocationInfo();
 showStatus('Face not recognized - try QR code', 'error');
 setTimeout(() => {
@@ -231,13 +218,18 @@ if (isFaceScanning) showStatus('Position your face in the camera', 'scanning');
 }
 }
 } catch (err) {
-console.error(err);
+console.error('Detection error:', err);
 }
 if (isFaceScanning) setTimeout(detectFaceLoop, 500);
 }
 
 async function confirmSignin() {
-if (!pendingSignin) return;
+if (!pendingSignin) {
+console.error('No pending signin');
+return;
+}
+console.log('Processing signin for:', pendingSignin.name);
+
 showStatus('⏳ Processing...', 'scanning');
 await recordSignin(pendingSignin.id, pendingSignin.name, pendingSignin.company, pendingSignin.location, pendingSignin.action, 'FACE');
 stopFaceScan();
@@ -292,6 +284,59 @@ showStatus(msg, 'success');
 if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 setTimeout(() => {
 if (!isFaceScanning && !isQrScanning) showStatus('Ready to connect', 'idle');
+}, 5000);
+} catch (err) {
+console.error('Error saving signin:', err);
+
+hideLocationInfo();
+showStatus('❌ Error saving', 'error');
+}
+}
+
+function toggleQrScan() {
+if (isQrScanning) stopQrScan();
+else startQrScan();
+}
+
+async function startQrScan() {
+if (isFaceScanning) stopFaceScan();
+try {
+currentLocation = await getLocation();
+} catch (err) {
+console.error('Location error:', err);
+}
+isQrScanning = true;
+document.getElementById('btnQr').textContent = 'Stop QR Scan';
+showStatus(' Point camera at QR code', 'scanning');
+document.getElementById('qr-reader').style.display = 'block';
+qrScanner = new Html5Qrcode("qr-reader");
+qrScanner.start(
+{ facingMode: "environment" },
+{ fps: 10, qrbox: { width: 240, height: 240 } },
+(decodedText) => {
+handleQrCode(decodedText);
+stopQrScan();
+},
+() => {}
+).catch(err => {
+console.error('QR error:', err);
+
+hideLocationInfo();
+showStatus('QR error', 'error');
+stopQrScan();
+});
+}
+
+function stopQrScan() {
+isQrScanning = false;
+document.getElementById('btnQr').textContent = 'Open Camera for QR';
+document.getElementById('qr-reader').style.display = 'none';
+hideLocationInfo();
+if (qrScanner) {
+try { qrScanner.stop(); } catch(e){}
+qrScanner = null;
+}
+currentLocation = null;
 showStatus('Ready to connect', 'idle');
 }
 
@@ -307,9 +352,11 @@ return;
 }
 }
 hideLocationInfo();
-showStatus('❌ Unknown QR code', 'error');
+showStatus(' Unknown QR code', 'error');
 }
 
+// Start loading models immediately
+console.log('🚀 Face Reader starting...');
 loadModels();
 </script>
 </body>
