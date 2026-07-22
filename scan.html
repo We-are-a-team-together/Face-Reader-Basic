@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Face Reader Basic - Attendance System</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; font-family:'Segoe UI', sans-serif; min-height:100vh; padding:20px; }
+.container { max-width:600px; margin:0 auto; }
+header { text-align:center; padding:30px 0; margin-bottom:20px; border-bottom: 2px solid rgba(255,255,255,0.1); }
+.logo { font-size:36px; font-weight:900; color: #E87722; letter-spacing: 1px; }
+.card { background: rgba(30, 41, 59, 0.8); padding:30px; border-radius:20px; margin-bottom:25px; border: 1px solid rgba(255,255,255,0.1); }
+h2 { margin:0 0 25px; font-size:20px; color:#f1f5f9; text-align: center; }
+.btn { width:100%; padding:14px; border-radius:12px; border:none; font-weight:700; cursor:pointer; color:#fff; margin-top:10px; font-size:16px; text-transform: uppercase; letter-spacing: 1px; }
+.btn-primary { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+.status { padding:16px; border-radius:12px; text-align:center; margin-bottom:20px; font-weight:600; }
+.success { background: rgba(6, 78, 59, 0.6); color:#34d399; border: 2px solid rgba(52, 211, 153, 0.3); }
+.error { background: rgba(127, 29, 29, 0.6); color:#f87171; border: 2px solid rgba(248, 113, 113, 0.3); }
+.info { background: rgba(30, 58, 138, 0.6); color:#93c5fd; border: 2px solid rgba(147, 197, 253, 0.3); }
+.warning { background: rgba(234, 179, 8, 0.2); color:#facc15; border: 2px solid rgba(250, 204, 21, 0.3); }
+#video { width:100%; border-radius:15px; display:none; margin:20px 0; border:3px solid #06b6d4; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.face-box { position: relative; width: 100%; border-radius: 15px; overflow: hidden; border: 3px solid rgba(6, 182, 212, 0.5); }
+.face-box.active { border-color: #10b981; }
+.hidden { display: none !important; }
+.footer { text-align:center; font-size:12px; color:#8C8E90; margin-top:40px; padding:25px 0; border-top: 1px solid rgba(255,255,255,0.1); }
+.site-box { background: rgba(30, 41, 59, 0.8); padding: 15px; border-radius: 15px; margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.1); text-align: center; }
+.site-box input { background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px; border-radius: 8px; width: 100%; text-align: center; font-size: 16px; font-weight: 700; margin-top: 5px; }
+</style>
+</head>
+<body>
+<div class="container">
+<header><div class="logo">Face Reader</div></header>
+
+<div class="site-box">
+<label style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Active Site Terminal Code:</label>
+<input type="text" id="siteInput" value="Site-A" onchange="changeSite(this.value)">
+</div>
+
+<div id="statusMsg" class="status hidden"></div>
+
+<div class="card">
+<h2>Operative Attendance Terminal</h2>
+<p style="color:#94a3b8; margin-bottom:20px; text-align:center;">Position your face in front of the camera to sign in or out automatically.</p>
+
+<div class="face-box">
+<video id="video" autoplay muted playsinline></video>
+</div>
+
+<button class="btn btn-primary" id="btnCamera" onclick="startScanner()">📷 Start Scanner Camera</button>
+</div>
+
+<div class="footer">Face Reader ©️ Basic</div>
+</div>
+
+<script>
+let SITE_ID = localStorage.getItem('faceReaderSiteId') || 'Site-A';
+document.getElementById('siteInput').value = SITE_ID;
+
+function changeSite(newSite) {
+if(newSite.trim()) {
+SITE_ID = newSite.trim();
+localStorage.setItem('faceReaderSiteId', SITE_ID);
+showStatus('Site changed to ' + SITE_ID + '. Reloading profiles...', 'info');
+setTimeout(() => location.reload(), 1000);
+}
+}
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB1m4mgU_r71POdSD8vxzİq2BrSk7K0M-o",
+  authDomain: "face-reader-basic.firebaseapp.com",
+  databaseURL: "https://face-reader-basic-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "face-reader-basic",
+  storageBucket: "face-reader-basic.appspot.com",
+  messagingSenderId: "645270939984",
+  appId: "1:645270939984:web:aa43a6522527a83941e455"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let operativesRef, faceDescriptorsRef, signinsRef, statusRef;
+function initRefs() {
+operativesRef = db.ref('sites/' + SITE_ID + '/operatives');
+faceDescriptorsRef = db.ref('sites/' + SITE_ID + '/faceDescriptors');
+signinsRef = db.ref('sites/' + SITE_ID + '/signins');
+statusRef = db.ref('sites/' + SITE_ID + '/status');
+}
+initRefs();
+
+let modelsLoaded = false;
+let videoStream = null;
+let labeledFaceDescriptors = [];
+let faceMatcher = null;
+let isScanning = false;
+let latestStatusData = {};
+
+statusRef.on('value', snap => {
+latestStatusData = {};
+snap.forEach(child => {
+latestStatusData[child.key] = child.val();
+});
+});
+
+function showStatus(msg, type) {
+const el = document.getElementById('statusMsg');
+el.textContent = msg;
+el.className = 'status ' + type;
+el.classList.remove('hidden');
+}
+
+async function startScanner() {
+try {
+showStatus('Starting camera...', 'info');
+document.getElementById('btnCamera').disabled = true;
+document.getElementById('btnCamera').textContent = 'Initializing...';
+
+videoStream = await navigator.mediaDevices.getUserMedia({
+video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+});
+
+const video = document.getElementById('video');
+video.srcObject = videoStream;
+video.style.display = 'block';
+
+await new Promise((resolve) => {
+video.onloadedmetadata = () => { video.play(); resolve(); };
+});
+
+document.querySelector('.face-box').classList.add('active');
+document.getElementById('btnCamera').style.display = 'none';
+
+if (!modelsLoaded) {
+showStatus('Loading AI models and database profiles for ' + SITE_ID + '...', 'info');
+await loadModelsAndProfiles();
+}
+
+showStatus('✅ Scanner active! Look at the camera.', 'success');
+startRecognitionLoop();
+
+} catch (err) {
+console.error('Scanner error:', err);
+showStatus('❌ Camera error: ' + err.message + '. Please allow access.', 'error');
+document.getElementById('btnCamera').disabled = false;
+document.getElementById('btnCamera').textContent = '📷 Start Scanner Camera';
+}
+}
+
+async function loadModelsAndProfiles() {
+try {
+const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model';
+await Promise.all([
+faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+]);
+
+modelsLoaded = true;
+
+const snap = await faceDescriptorsRef.once('value');
+labeledFaceDescriptors = [];
+
+snap.forEach(child => {
+const val = child.val();
+if (val && val.descriptor) {
+const float32Array = new Float32Array(Object.values(val.descriptor));
+labeledFaceDescriptors.push(
+new faceapi.LabeledFaceDescriptors(child.key, [float32Array])
+);
+}
+});
+
+if (labeledFaceDescriptors.length > 0) {
+faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
+}
+} catch (err) {
+console.error('Loading error:', err);
+throw new Error('Failed to load recognition components.');
+}
+}
+
+function startRecognitionLoop() {
+const video = document.getElementById('video');
+isScanning = true;
+
+setInterval(async () => {
+if (!isScanning || !faceMatcher) return;
+
+const detection = await faceapi.detectSingleFace(
+video,
+new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 })
+).withFaceLandmarks().withFaceDescriptor();
+
+if (detection) {
+const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+if (bestMatch.label !== 'unknown') {
+isScanning = tagOperative(bestMatch.label);
+}
+}
+}, 1500);
+}
+
+async function tagOperative(operativeId) {
+showStatus('Recognizing face... processing record', 'info');
+
+try {
+const opSnap = await operativesRef.child(operativeId).once('value');
+const operative = opSnap.val();
+
+if (!operative) {
+showStatus('⚠️ Profile not found in database.', 'warning');
+return true;
+}
+
+const currentOpStatus = latestStatusData[operativeId];
+const nextAction = (currentOpStatus && currentOpStatus.onSite) ? 'OUT' : 'IN';
+
+const timestamp = Date.now();
+const recordData = {
+operativeId: operativeId,
+operativeName: operative.name || 'Unknown',
+operativeCompany: operative.company || 'Unknown',
+operativeLocation: operative.location || '',
+method: 'FACE',
+action: nextAction,
+timestamp: timestamp
+};
+
+await signinsRef.push(recordData);
+await statusRef.child(operativeId).set({
+onSite: (nextAction === 'IN'),
+name: operative.name,
+company: operative.company,
+location: operative.location || '',
+lastAction: nextAction,
+timestamp: timestamp
+});
+
+showStatus(`✅ Successfully signed ${nextAction}: ${operative.name} (${operative.company})`, 'success');
+
+setTimeout(() => {
+if (isScanning === false) {
+showStatus('✅ Scanner active! Look at the camera.', 'success');
+isScanning = true;
+}
+}, 4000);
+
+return false;
+} catch (err) {
+console.error('Sign-in error:', err);
+showStatus('❌ Sign-in error: ' + err.message, 'error');
+return true;
+}
+}
+</script>
+</body>
+</html>
