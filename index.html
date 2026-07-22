@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Face Reader - Register</title>
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+* { box-sizing: border-box; }
+body { background:#020617; color:#fff; font-family:Arial,sans-serif; margin:0; padding:20px; }
+.container { max-width:600px; margin:0 auto; }
+header { text-align:center; padding:20px 0; border-bottom:1px solid #1e293b; margin-bottom:20px; }
+.logo { font-size:28px; font-weight:800; color: #06b6d4; }
+.card { background:#1e293b; padding:20px; border-radius:10px; margin-bottom:20px; }
+input { width:100%; padding:12px; margin:8px 0; border-radius:5px; border:1px solid #334155; background:#0f172a; color:#fff; }
+button { width:100%; padding:14px; margin:10px 0; border-radius:5px; border:none; font-weight:700; cursor:pointer; color:#fff; }
+.btn-camera { background:#0891b2; }
+.btn-capture { background:#10b981; display:none; }
+.status { padding:12px; border-radius:5px; text-align:center; margin-bottom:15px; }
+.status-loading { background:#1e3a8a; color:#93c5fd; }
+.status-success { background:#064e3b; color:#6ee7b7; }
+.status-error { background:#7f1d1d; color:#fca5a5; }
+#video { width:100%; border-radius:10px; display:none; margin-top:10px; }
+.footer { text-align:center; font-size:11px; color:#475569; margin-top:20px; }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<div class="logo">FACE READER</div>
+</header>
+
+<div id="status" class="status status-loading">Loading models...</div>
+
+<div class="card">
+<h2>Register Operative Face</h2>
+<input type="text" id="name" placeholder="Full Name" required>
+<input type="text" id="company" placeholder="Company / Employer" required>
+<input type="text" id="location" placeholder="Assigned Location (e.g., The Monument Court)" required>
+<input type="text" id="role" placeholder="Role / Job Title">
+<input type="text" id="qrCode" placeholder="QR Code ID (Optional)">
+
+<button type="button" class="btn-camera" id="btnCamera" onclick="startCamera()" disabled>
+Open Camera
+</button>
+<video id="video" autoplay muted playsinline></video>
+<button type="button" class="btn-capture" id="btnCapture" onclick="captureFace()">
+Capture Face
+</button>
+</div>
+
+<div class="footer">Face reader Basic - We are a team together Ltd</div>
+</div>
+
+<script>
+const firebaseConfig = {
+apiKey: "AIzaSyB1m4mgU_r71POdSD8vxzIq2BrSk7K0M-o",
+authDomain: "face-reader-basic.firebaseapp.com",
+databaseURL: "https://face-reader-basic-default-rtdb.europe-west1.firebasedatabase.app",
+projectId: "face-reader-basic",
+storageBucket: "face-reader-basic.firebasestorage.app",
+messagingSenderId: "645270939984",
+appId: "1:645270939984:web:aa43a6522527a83941e455"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const operativesRef = db.ref('users');
+const faceDescriptorsRef = db.ref('faceDescriptors');
+
+let videoStream = null;
+
+async function loadModels() {
+const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model';
+await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+document.getElementById('status').className = 'status status-success';
+document.getElementById('status').textContent = 'Ready! Click Open Camera';
+document.getElementById('btnCamera').disabled = false;
+}
+
+async function startCamera() {
+const name = document.getElementById('name').value.trim();
+const company = document.getElementById('company').value.trim();
+const location = document.getElementById('location').value.trim();
+if (!name || !company || !location) { alert('Please fill in Name, Company, and Assigned Location'); return; }
+
+videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+const video = document.getElementById('video');
+video.srcObject = videoStream;
+video.style.display = 'block';
+document.getElementById('btnCamera').style.display = 'none';
+document.getElementById('btnCapture').style.display = 'block';
+document.getElementById('status').textContent = 'Position face and click Capture';
+}
+
+async function captureFace() {
+const video = document.getElementById('video');
+const name = document.getElementById('name').value.trim();
+const company = document.getElementById('company').value.trim();
+const location = document.getElementById('location').value.trim();
+const role = document.getElementById('role').value.trim();
+const qrCode = document.getElementById('qrCode').value.trim();
+
+// EXACT PROVEN FACE RECOGNITION LINE
+const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+
+if (!detection) {
+document.getElementById('status').className = 'status status-error';
+document.getElementById('status').textContent = 'No face detected!';
+return;
+}
+
+const faceDescriptor = Array.from(detection.descriptor);
+const newRef = operativesRef.push();
+const id = newRef.key;
+
+await newRef.set({ name, company, location, role, qrCode, createdAt: firebase.database.ServerValue.TIMESTAMP });
+await faceDescriptorsRef.child(id).set({ descriptor: faceDescriptor, name, company, location });
+
+videoStream.getTracks().forEach(t => t.stop());
+document.getElementById('status').className = 'status status-success';
+document.getElementById('status').textContent = 'Registered: ' + name;
+document.getElementById('video').style.display = 'none';
+document.getElementById('btnCamera').style.display = 'block';
+document.getElementById('btnCapture').style.display = 'none';
+document.getElementById('name').value = '';
+document.getElementById('company').value = '';
+document.getElementById('location').value = '';
+document.getElementById('role').value = '';
+document.getElementById('qrCode').value = '';
+}
+
+loadModels();
+</script>
+</body>
+</html>
