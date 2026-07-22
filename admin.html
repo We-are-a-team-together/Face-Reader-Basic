@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Face Reader - Admin</title>
+<title>FaceCheck - Admin</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <style>
@@ -11,8 +11,10 @@
 body { background:#020617; color:#fff; font-family:Arial,sans-serif; margin:0; padding:20px; }
 .container { max-width:800px; margin:0 auto; }
 header { text-align:center; padding:20px 0; border-bottom:1px solid #1e293b; margin-bottom:20px; }
-.logo { font-size:28px; font-weight:800; color: #06b6d4; }
-.badge { background:#4f46e5; padding:5px 10px; border-radius:15px; font-size:12px; display:inline-block; margin-top:10px;}
+.logo { font-size:28px; font-weight:800; }
+.orange { color:#F58C1F; }
+.grey { color:#8E8E8E; display:block; font-size:24px; }
+.badge { background:#4f46e5; padding:5px 10px; border-radius:15px; font-size:12px; }
 .card { background:#1e293b; padding:20px; border-radius:10px; margin-bottom:20px; }
 input { width:100%; padding:12px; margin:8px 0; border-radius:5px; border:1px solid #334155; background:#0f172a; color:#fff; }
 button { padding:12px 20px; border-radius:5px; border:none; font-weight:700; cursor:pointer; color:#fff; margin-right:10px; }
@@ -24,8 +26,7 @@ button { padding:12px 20px; border-radius:5px; border:none; font-weight:700; cur
 .operative-item { background:#0f172a; padding:15px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
 .name { font-weight:700; font-size:16px; }
 .details { font-size:12px; color:#94a3b8; margin-top:5px; }
-.company { color:#06b6d4; font-weight:600; }
-.location { color:#a855f7; font-weight:600; }
+.company { color:#F58C1F; font-weight:600; }
 .status-msg { padding:12px; border-radius:5px; text-align:center; margin-bottom:15px; display:none; }
 .success { background:#064e3b; color:#6ee7b7; display:block; }
 .error { background:#7f1d1d; color:#fca5a5; display:block; }
@@ -35,8 +36,11 @@ button { padding:12px 20px; border-radius:5px; border:none; font-weight:700; cur
 <body>
 <div class="container">
 <header>
-<div class="logo">FACE READER</div>
-<div class="badge">Admin Dashboard</div>
+<div class="logo">
+<span class="orange">REGENCY</span>
+<span class="grey">FACADES</span>
+</div>
+<div class="badge" style="margin-top:10px; display:inline-block;">Site ID: I</div>
 </header>
 
 <a href="index.html" class="btn-register">Go to Face Registration Page</a>
@@ -48,9 +52,8 @@ button { padding:12px 20px; border-radius:5px; border:none; font-weight:700; cur
 <form id="operativeForm">
 <input type="hidden" id="operativeId">
 <input type="text" id="name" placeholder="Full Name" required>
-<input type="text" id="company" placeholder="Company / Employer" required>
-<input type="text" id="location" placeholder="Assigned Location (e.g., The Monument Court)" required>
-<input type="text" id="role" placeholder="Role / Job Title">
+<input type="text" id="company" placeholder="Company" required>
+<input type="text" id="role" placeholder="Role/Job Title">
 <input type="text" id="qrCode" placeholder="QR Code ID (Optional)">
 <div style="margin-top:10px;">
 <button type="submit" class="btn-save">Save Details</button>
@@ -64,24 +67,25 @@ button { padding:12px 20px; border-radius:5px; border:none; font-weight:700; cur
 <div id="operativeList">Loading...</div>
 </div>
 
-<div class="footer">Face reader Basic - We are a team together Ltd</div>
+<div class="footer">Regency Facades 2026</div>
 </div>
 
 <script>
+const SITE_ID = "I";
 const firebaseConfig = {
-apiKey: "AIzaSyB1m4mgU_r71POdSD8vxzIq2BrSk7K0M-o",
-authDomain: "face-reader-basic.firebaseapp.com",
-databaseURL: "https://face-reader-basic-default-rtdb.europe-west1.firebasedatabase.app",
-projectId: "face-reader-basic",
-storageBucket: "face-reader-basic.firebasestorage.app",
-messagingSenderId: "645270939984",
-appId: "1:645270939984:web:aa43a6522527a83941e455"
+apiKey: "AIzaSyDtoxxIjNTNUAs36702Fvcis-ZnfTjyJyU",
+authDomain: "swiftcheck-face.firebaseapp.com",
+databaseURL: "https://swiftcheck-face-default-rtdb.europe-west1.firebasedatabase.app",
+projectId: "swiftcheck-face",
+storageBucket: "swiftcheck-face.firebasestorage.app",
+messagingSenderId: "450988754217",
+appId: "1:450988754217:web:3635f97011943c51266338"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const operativesRef = db.ref('users');
-const faceDescriptorsRef = db.ref('faceDescriptors');
+const operativesRef = db.ref('sites/' + SITE_ID + '/operatives');
+const faceDescriptorsRef = db.ref('sites/' + SITE_ID + '/faceDescriptors');
 
 let operatives = {};
 const form = document.getElementById('operativeForm');
@@ -106,7 +110,6 @@ const id = document.getElementById('operativeId').value;
 const data = {
 name: document.getElementById('name').value.trim(),
 company: document.getElementById('company').value.trim(),
-location: document.getElementById('location').value.trim(),
 role: document.getElementById('role').value.trim(),
 qrCode: document.getElementById('qrCode').value.trim(),
 updatedAt: firebase.database.ServerValue.TIMESTAMP
@@ -115,7 +118,6 @@ updatedAt: firebase.database.ServerValue.TIMESTAMP
 try {
 if (id) {
 await operativesRef.child(id).update(data);
-await faceDescriptorsRef.child(id).update({ name: data.name, company: data.company, location: data.location });
 showStatus('Updated successfully', 'success');
 } else {
 data.createdAt = firebase.database.ServerValue.TIMESTAMP;
@@ -133,7 +135,6 @@ const o = operatives[id];
 document.getElementById('operativeId').value = id;
 document.getElementById('name').value = o.name || '';
 document.getElementById('company').value = o.company || '';
-document.getElementById('location').value = o.location || '';
 document.getElementById('role').value = o.role || '';
 document.getElementById('qrCode').value = o.qrCode || '';
 document.getElementById('formTitle').textContent = 'Edit: ' + o.name;
@@ -166,7 +167,6 @@ listEl.innerHTML = list.map(o => `
 <div>
 <div class="name">${o.name || 'Unnamed'}</div>
 <div class="details">
-<span class="location">📍 ${o.location || 'No location'}</span><br>
 <span class="company">${o.company || ''}</span> &middot; ${o.role || 'No role'}
 ${o.qrCode ? '<br>QR: ' + o.qrCode : ''}
 </div>
