@@ -24,7 +24,7 @@ button { width:100%; padding:12px; border-radius:5px; border:none; font-weight:7
 .error { background:#7f1d1d; color:#fca5a5; display:block; }
 .info { background:#1e3a8a; color:#93c5fd; display:block; }
 #video { width: 100%; border-radius: 8px; display: none; margin-bottom: 10px; }
-.footer { text-align:center; font-size:11px; color:#475569; margin-top:20px; }
+.footer { text-align:center; font-size:11px; color:#475569; margin-top:20px; line-height: 1.5; }
 .site-box { background: rgba(15, 23, 42, 0.8); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #334155; }
 </style>
 </head>
@@ -48,7 +48,7 @@ button { width:100%; padding:12px; border-radius:5px; border:none; font-weight:7
 <input type="text" id="company" placeholder="Company" required>
 <input type="text" id="role" placeholder="Role/Job Title">
 <input type="text" id="location" placeholder="Assigned Specific Location (e.g. Block 1, Level 2)" required>
-<input type="text" id="qrCode" placeholder="QR Code ID (Optional)">
+<input type="text" id="qrCode" placeholder="QR Code ID / Unique Badge String">
 
 <video id="video" autoplay muted playsinline></video>
 
@@ -57,7 +57,10 @@ button { width:100%; padding:12px; border-radius:5px; border:none; font-weight:7
 </form>
 </div>
 
-<div class="footer">Face Reader ©️ Basic</div>
+<div class="footer">
+We are a team together ltd ©️sign 2026<br>
+Face Reader ©️ Basic
+</div>
 </div>
 
 <script>
