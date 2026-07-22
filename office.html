@@ -9,7 +9,7 @@
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; font-family:'Segoe UI', sans-serif; min-height:100vh; }
-.container { max-width:1400px; margin:0 auto; padding:30px 20px; }
+.container { max-width:1600px; margin:0 auto; padding:30px 20px; }
 header { display:flex; justify-content:space-between; align-items:center; padding:25px 0; margin-bottom:30px; border-bottom: 2px solid rgba(255,255,255,0.1); }
 .logo { font-size:32px; font-weight:900; color: #06b6d4; }
 .badge { background: linear-gradient(135deg, #10b981, #059669); color:#fff; padding:8px 16px; border-radius:20px; font-size:12px; font-weight:700; }
@@ -30,11 +30,12 @@ button { padding:14px 24px; border-radius:12px; border:none; font-weight:700; cu
 .btn-export { background: linear-gradient(135deg, #06b6d4, #0891b2); }
 .btn-clear { background: linear-gradient(135deg, #ef4444, #dc2626); }
 table { width:100%; border-collapse: collapse; }
-th { background: rgba(15, 23, 42, 0.9); padding:16px; text-align:left; font-size:12px; color:#94a3b8; text-transform:uppercase; font-weight:700; border-bottom: 2px solid #06b6d4; }
+th { background: rgba(15, 23, 42, 0.9); padding:16px; text-align:left; font-size:12px; color:#94a3b8; text-transform:uppercase; font-weight:700; border-bottom: 2px solid #06b6d4; white-space: nowrap; }
 td { padding:16px; border-bottom:1px solid rgba(255,255,255,0.05); vertical-align: top; }
 tr:hover { background: rgba(255,255,255,0.03); }
 .operative-name { font-weight:700; font-size:15px; color:#fff; }
 .operative-company { font-size:12px; color:#06b6d4; margin-top:4px; }
+.operative-role { font-size:11px; color:#a855f7; margin-top:2px; }
 .location-text { color:#a855f7; font-size:13px; }
 .method-badge, .action-badge { padding:6px 12px; border-radius:15px; font-size:11px; font-weight:700; display: inline-block; }
 .face { background: rgba(6, 182, 212, 0.2); color:#22d3ee; }
@@ -68,7 +69,7 @@ tr:hover { background: rgba(255,255,255,0.03); }
 </select>
 <div class="search-container">
 <span class="search-icon">🔍</span>
-<input type="text" id="searchInput" placeholder="Search by name, company..." onkeyup="render()" style="padding-left: 50px;">
+<input type="text" id="searchInput" placeholder="Search by name, company, role..." onkeyup="render()" style="padding-left: 50px;">
 </div>
 <button class="btn-refresh" onclick="location.reload()">↻ Refresh</button>
 <button class="btn-export" onclick="exportCSV()">Export CSV</button>
@@ -81,6 +82,7 @@ tr:hover { background: rgba(255,255,255,0.03); }
 <tr>
 <th>Operative</th>
 <th>Company</th>
+<th>Role</th>
 <th>Location</th>
 <th>Method</th>
 <th>Action</th>
@@ -89,7 +91,7 @@ tr:hover { background: rgba(255,255,255,0.03); }
 </tr>
 </thead>
 <tbody id="tbody">
-<tr><td colspan="7" class="empty">Loading data from database...</td></tr>
+<tr><td colspan="8" class="empty">Loading data from database...</td></tr>
 </tbody>
 </table>
 </div>
@@ -116,6 +118,7 @@ const usersRef = db.ref('users');
 
 let allRecords = [];
 let statusData = {};
+let usersData = {};
 let allLocations = new Set(['all']);
 
 function todayStart() {
@@ -154,7 +157,8 @@ todays = todays.filter(r => {
 const name = (r.operativeName || '').toLowerCase();
 const company = (r.operativeCompany || '').toLowerCase();
 const location = (r.assignedLocation || '').toLowerCase();
-return name.includes(searchText) || company.includes(searchText) || location.includes(searchText);
+const role = (r.role || '').toLowerCase();
+return name.includes(searchText) || company.includes(searchText) || location.includes(searchText) || role.includes(searchText);
 });
 }
 
@@ -202,7 +206,7 @@ select.value = 'all';
 const tbody = document.getElementById('tbody');
 
 if (todays.length === 0) {
-tbody.innerHTML = '<tr><td colspan="7" class="empty">No records found</td></tr>';
+tbody.innerHTML = '<tr><td colspan="8" class="empty">No records found</td></tr>';
 return;
 }
 
@@ -212,6 +216,10 @@ tbody.innerHTML = todays.map(r => {
 const time = new Date(r.timestamp).toLocaleTimeString();
 const methodClass = r.method === 'FACE' ? 'face' : 'qr';
 const actionClass = r.action === 'IN' ? 'in' : 'out';
+
+// Get role from users data
+const userData = usersData[r.operativeId] || {};
+const role = r.role || userData.role || 'No role';
 
 let gpsHtml = '<span style="color:#64748b">No GPS</span>';
 if (r.location && r.location.address) {
@@ -223,8 +231,12 @@ gpsHtml = `<div class="gps-info">${r.location.lat.toFixed(4)}, ${r.location.lng.
 }
 
 return `<tr>
-<td><div class="operative-name">${escapeHtml(r.operativeName || 'Unknown')}</div></td>
+<td>
+<div class="operative-name">${escapeHtml(r.operativeName || 'Unknown')}</div>
+<div class="operative-company">${escapeHtml(r.operativeCompany || 'Unknown')}</div>
+</td>
 <td><div class="operative-company">${escapeHtml(r.operativeCompany || 'Unknown')}</div></td>
+<td><div class="operative-role">${escapeHtml(role)}</div></td>
 <td><div class="location-text">${escapeHtml(r.assignedLocation || 'Unassigned')}</div></td>
 <td><span class="method-badge ${methodClass}">${r.method || 'Unknown'}</span></td>
 <td><span class="action-badge ${actionClass}">${r.action || 'Unknown'}</span></td>
@@ -246,7 +258,7 @@ render();
 });
 
 statusRef.on('value', snap => {
-console.log('📥 Received status data');
+console.log(' Received status data');
 statusData = {};
 snap.forEach(child => {
 const val = child.val();
@@ -259,9 +271,11 @@ render();
 });
 
 usersRef.on('value', snap => {
-console.log('📥 Received users data');
+console.log(' Received users data');
+usersData = {};
 snap.forEach(child => {
 const user = child.val();
+usersData[child.key] = user;
 if (user && user.location && user.location !== 'Unassigned') {
 allLocations.add(user.location);
 }
@@ -280,9 +294,11 @@ alert('No records to export');
 return;
 }
 
-let csv = 'Date,Time,Name,Company,Location,Method,Action\n';
+let csv = 'Date,Time,Name,Company,Role,Location,Method,Action\n';
 data.forEach(r => {
-csv += `"${new Date(r.timestamp).toISOString().split('T')[0]}","${new Date(r.timestamp).toLocaleTimeString()}","${r.operativeName}","${r.operativeCompany}","${r.assignedLocation}","${r.method}","${r.action}"\n`;
+const userData = usersData[r.operativeId] || {};
+const role = r.role || userData.role || '';
+csv += `"${new Date(r.timestamp).toISOString().split('T')[0]}","${new Date(r.timestamp).toLocaleTimeString()}","${r.operativeName}","${r.operativeCompany}","${role}","${r.assignedLocation}","${r.method}","${r.action}"\n`;
 });
 
 const blob = new Blob([csv], { type: 'text/csv' });
@@ -293,7 +309,7 @@ a.click();
 }
 
 async function clearToday() {
-if (!confirm('⚠️ Delete ALL today\'s records and reset status?')) return;
+if (!confirm('️ Delete ALL today\'s records and reset status?')) return;
 const today = todayStart();
 const updates = {};
 
