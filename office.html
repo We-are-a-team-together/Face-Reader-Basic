@@ -8,50 +8,39 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; min-height:100vh; }
+body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; font-family:'Segoe UI', sans-serif; min-height:100vh; }
 .container { max-width:1400px; margin:0 auto; padding:30px 20px; }
 header { display:flex; justify-content:space-between; align-items:center; padding:25px 0; margin-bottom:30px; border-bottom: 2px solid rgba(255,255,255,0.1); }
-.logo { font-size:32px; font-weight:900; color: #06b6d4; letter-spacing: 1px; }
-.badge { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color:#fff; padding:8px 16px; border-radius:20px; font-size:12px; font-weight:700; text-transform: uppercase; letter-spacing: 2px; }
+.logo { font-size:32px; font-weight:900; color: #06b6d4; }
+.badge { background: linear-gradient(135deg, #10b981, #059669); color:#fff; padding:8px 16px; border-radius:20px; font-size:12px; font-weight:700; }
 .stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:20px; margin-bottom:30px; }
-.stat { background: rgba(30, 41, 59, 0.8); padding:30px; border-radius:20px; text-align:center; border: 1px solid rgba(255,255,255,0.1); }
+.stat { background: rgba(30, 41, 59, 0.8); padding:30px; border-radius:20px; text-align:center; }
 .num { font-size:56px; font-weight:900; margin-bottom:10px; }
 .green { color:#10b981; } .blue { color:#06b6d4; } .amber { color:#f97316; } .purple { color:#a855f7; }
-.label { font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:2px; font-weight:600; }
-.card { background: rgba(30, 41, 59, 0.8); padding:30px; border-radius:20px; margin-bottom:25px; border: 1px solid rgba(255,255,255,0.1); }
-h2 { margin:0 0 25px; font-size:18px; color:#f1f5f9; font-weight:700; }
-.company-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:20px; }
-.company-item { background: rgba(15, 23, 42, 0.6); padding:25px; border-radius:15px; border-left: 5px solid #06b6d4; }
-.company-name { font-weight:700; margin-bottom:10px; font-size:16px; color:#f1f5f9; }
-.company-count { font-size:48px; font-weight:900; color:#06b6d4; line-height: 1; }
+.label { font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:2px; }
+.card { background: rgba(30, 41, 59, 0.8); padding:30px; border-radius:20px; margin-bottom:25px; }
+h2 { margin:0 0 25px; font-size:18px; color:#f1f5f9; }
 .controls { display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap; align-items: center; }
 input, select { padding:14px 18px; border-radius:12px; border:2px solid rgba(255,255,255,0.1); background: rgba(15, 23, 42, 0.6); color:#fff; font-size:15px; }
 input { flex:1; min-width:250px; }
 input:focus, select:focus { outline: none; border-color: #06b6d4; }
 select { min-width: 200px; cursor: pointer; }
-select option { background: #1e293b; color: #fff; }
-button { padding:14px 24px; border-radius:12px; border:none; font-weight:700; cursor:pointer; color:#fff; text-transform: uppercase; letter-spacing: 1px; font-size:14px; }
-.btn-refresh { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
-.btn-export { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
-.btn-clear { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
-button:hover { transform: translateY(-2px); }
-table { width:100%; border-collapse:separate; border-spacing: 0; }
-th { background: rgba(15, 23, 42, 0.8); padding:16px; text-align:left; font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing: 1.5px; font-weight:700; }
-th:first-child { border-top-left-radius: 10px; }
-th:last-child { border-top-right-radius: 10px; }
+button { padding:14px 24px; border-radius:12px; border:none; font-weight:700; cursor:pointer; color:#fff; }
+.btn-refresh { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+.btn-export { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+.btn-clear { background: linear-gradient(135deg, #ef4444, #dc2626); }
+table { width:100%; }
+th { background: rgba(15, 23, 42, 0.8); padding:16px; text-align:left; font-size:11px; color:#94a3b8; text-transform:uppercase; font-weight:700; }
 td { padding:18px 16px; border-bottom:1px solid rgba(255,255,255,0.05); }
 tr:hover { background: rgba(255,255,255,0.05); }
-.method-badge { padding:6px 14px; border-radius:20px; font-size:11px; font-weight:700; text-transform: uppercase; letter-spacing: 1px; display: inline-block; }
-.face { background: rgba(6, 182, 212, 0.2); color:#22d3ee; border: 1px solid #06b6d4; }
-.qr { background: rgba(140, 142, 144, 0.2); color:#8C8E90; border: 1px solid #8C8E90; }
-.action-badge { padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700; text-transform: uppercase; letter-spacing: 1px; display: inline-block; }
-.in { background: rgba(16, 185, 129, 0.2); color:#34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
-.out { background: rgba(249, 115, 22, 0.2); color:#fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
+.method-badge, .action-badge { padding:6px 14px; border-radius:20px; font-size:11px; font-weight:700; display: inline-block; }
+.face { background: rgba(6, 182, 212, 0.2); color:#22d3ee; }
+.qr { background: rgba(140, 142, 144, 0.2); color:#8C8E90; }
+.in { background: rgba(16, 185, 129, 0.2); color:#34d399; }
+.out { background: rgba(249, 115, 22, 0.2); color:#fbbf24; }
 .time { color:#94a3b8; font-family:'Courier New', monospace; font-size:14px; }
-.location-cell { font-size:12px; color:#a5b4fc; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.location-icon { display:inline-block; margin-right:5px; }
+.location-cell { font-size:12px; color:#a5b4fc; }
 .map-link { color:#06b6d4; text-decoration:none; font-size:11px; margin-left:5px; }
-.map-link:hover { text-decoration:underline; }
 .empty { text-align:center; color:#64748b; padding:50px; font-size:16px; }
 .footer { text-align:center; font-size:12px; color:#8C8E90; margin-top:40px; padding:25px 0; border-top: 1px solid rgba(255,255,255,0.1); }
 </style>
@@ -70,16 +59,11 @@ tr:hover { background: rgba(255,255,255,0.05); }
 <div class="stat"><div class="num purple" id="unique">0</div><div class="label">Unique Operatives</div></div>
 </div>
 
-<div class="card">
-<h2>Operatives by Company</h2>
-<div class="company-grid" id="companyGrid"><div class="empty">Loading...</div></div>
-</div>
-
 <div class="controls">
 <select id="locationFilter" onchange="render()">
 <option value="all">All Locations</option>
 </select>
-<input type="text" id="search" placeholder="Filter by name, company, or method..." oninput="render()">
+<input type="text" id="searchInput" placeholder="🔍 Search by name, company, or method..." onkeyup="render()">
 <button class="btn-refresh" onclick="location.reload()">↻ Refresh</button>
 <button class="btn-export" onclick="exportCSV()">Export CSV</button>
 <button class="btn-clear" onclick="clearToday()">Clear Today</button>
@@ -93,7 +77,7 @@ tr:hover { background: rgba(255,255,255,0.05); }
 <th>Assigned Location</th>
 <th>Method</th>
 <th>Action</th>
-<th>GPS Proof (Geographical)</th>
+<th>GPS Proof</th>
 <th>Time</th>
 <th>Elapsed</th>
 </tr>
@@ -141,20 +125,35 @@ if (!ts) return 'unknown';
 const s = Math.floor((Date.now() - ts) / 1000);
 if (s < 60) return s + 's ago';
 if (s < 3600) return Math.floor(s / 60) + 'm ago';
-if (s < 86400) return Math.floor(s / 3600) + 'h ago';
-return Math.floor(s / 86400) + 'd ago';
+return Math.floor(s / 3600) + 'h ago';
 }
 
 function render() {
 const today = todayStart();
 const locFilter = document.getElementById('locationFilter').value;
+const searchText = document.getElementById('searchInput').value.toLowerCase();
 
+// Filter today's records
 let todays = allRecords.filter(r => r.timestamp && r.timestamp >= today);
+
+// Apply location filter
 if (locFilter !== 'all') {
 todays = todays.filter(r => r.assignedLocation === locFilter);
 }
 
-const onSiteNow = Object.values(statusData).filter(s => s && s.onSite && (locFilter === 'all' || s.assignedLocation === locFilter)).length;
+// Apply search filter
+if (searchText.trim() !== '') {
+todays = todays.filter(r => {
+const name = (r.operativeName || '').toLowerCase();
+const company = (r.operativeCompany || '').toLowerCase();
+const method = (r.method || '').toLowerCase();
+const location = (r.assignedLocation || '').toLowerCase();
+return name.includes(searchText) || company.includes(searchText) || method.includes(searchText) || location.includes(searchText);
+});
+}
+
+// Update stats
+const onSiteNow = Object.values(statusData).filter(s => s && s.onSite).length;
 const totalIns = todays.filter(r => r.action === 'IN').length;
 const recent = todays.filter(r => Date.now() - r.timestamp < 15 * 60 * 1000).length;
 const unique = new Set(todays.map(r => r.operativeId)).size;
@@ -164,39 +163,11 @@ document.getElementById('total').textContent = totalIns;
 document.getElementById('recent').textContent = recent;
 document.getElementById('unique').textContent = unique;
 
-const companyCount = {};
-Object.values(statusData).forEach(s => {
-if (s && s.onSite && (locFilter === 'all' || s.assignedLocation === locFilter)) {
-const company = s.company || 'Unknown';
-companyCount[company] = (companyCount[company] || 0) + 1;
-}
-});
-
-const companies = Object.entries(companyCount).sort((a, b) => b[1] - a[1]);
-const grid = document.getElementById('companyGrid');
-
-if (companies.length === 0) {
-grid.innerHTML = '<div class="empty">No operatives on site</div>';
-} else {
-grid.innerHTML = companies.map(([c, n]) =>
-`<div class="company-item">
-<div class="company-name">${escapeHtml(c)}</div>
-<div class="company-count">${n}</div>
-</div>`
-).join('');
-}
-
+// Update location dropdown
 const select = document.getElementById('locationFilter');
 const currentVal = select.value;
 const uniqueLocations = new Set(['all']);
-
-allRecords.forEach(r => {
-if(r.assignedLocation) uniqueLocations.add(r.assignedLocation);
-});
-
-Object.values(statusData).forEach(s => {
-if(s && s.assignedLocation) uniqueLocations.add(s.assignedLocation);
-});
+allRecords.forEach(r => { if(r.assignedLocation) uniqueLocations.add(r.assignedLocation); });
 
 select.innerHTML = '';
 uniqueLocations.forEach(loc => {
@@ -205,66 +176,61 @@ opt.value = loc;
 opt.textContent = loc === 'all' ? 'All Locations' : loc;
 select.appendChild(opt);
 });
-select.value = uniqueLocations.has(currentVal) ? currentVal : 'all';
+select.value = currentVal || 'all';
 
+// Render table
 const tbody = document.getElementById('tbody');
-const filter = document.getElementById('search').value.toLowerCase();
 
-let records = todays.filter(r => {
-const name = r.operativeName ? r.operativeName.toLowerCase() : '';
-const company = r.operativeCompany ? r.operativeCompany.toLowerCase() : '';
-const method = r.method ? r.method.toLowerCase() : '';
-const location = r.assignedLocation ? r.assignedLocation.toLowerCase() : '';
-return name.includes(filter) || company.includes(filter) || method.includes(filter) || location.includes(filter);
-});
+if (todays.length === 0) {
+tbody.innerHTML = '<tr><td colspan="7" class="empty">No records found</td></tr>';
+return;
+}
 
-records.sort((a, b) => b.timestamp - a.timestamp);
+todays.sort((a, b) => b.timestamp - a.timestamp);
 
-if (records.length === 0) {
-tbody.innerHTML = '<tr><td colspan="7" class="empty">No records today</td></tr>';
-} else {
-tbody.innerHTML = records.map(r => {
+tbody.innerHTML = todays.map(r => {
 const time = new Date(r.timestamp).toLocaleTimeString();
 const methodClass = r.method === 'FACE' ? 'face' : 'qr';
 const actionClass = r.action === 'IN' ? 'in' : 'out';
 
-let locationHtml = '<span style="color:#64748b">No GPS data</span>';
-if (r.location) {
-if (r.location.address) {
+let locationHtml = '<span style="color:#64748b">No GPS</span>';
+if (r.location && r.location.address) {
 const mapUrl = `https://www.google.com/maps?q=${r.location.lat},${r.location.lng}`;
-locationHtml = `<span class="location-icon">📍</span><span class="location-cell" title="${escapeHtml(r.location.address)}">${escapeHtml(r.location.address)}</span><a href="${mapUrl}" target="_blank" class="map-link">View</a>`;
-} else if (r.location.lat && r.location.lng) {
+locationHtml = `<span class="location-cell">${escapeHtml(r.location.address)}</span><a href="${mapUrl}" target="_blank" class="map-link">🗺️</a>`;
+} else if (r.location && r.location.lat) {
 const mapUrl = `https://www.google.com/maps?q=${r.location.lat},${r.location.lng}`;
-locationHtml = `<span class="location-cell">${r.location.lat.toFixed(4)}, ${r.location.lng.toFixed(4)}</span><a href="${mapUrl}" target="_blank" class="map-link">View</a>`;
-}
+locationHtml = `<span class="location-cell">${r.location.lat.toFixed(4)}, ${r.location.lng.toFixed(4)}</span><a href="${mapUrl}" target="_blank" class="map-link">🗺️</a>`;
 }
 
 return `<tr>
 <td>
-<div style="font-weight:700; font-size:15px;">${escapeHtml(r.operativeName)}</div>
-${r.operativeCompany ? `<div style="font-size:12px; color:#06b6d4; margin-top:4px;">${escapeHtml(r.operativeCompany)}</div>` : ''}
+<div style="font-weight:700;">${escapeHtml(r.operativeName)}</div>
+<div style="font-size:12px; color:#06b6d4;">${escapeHtml(r.operativeCompany)}</div>
 </td>
-<td><div style="color:#a855f7; font-weight:600; font-size:14px;">${escapeHtml(r.assignedLocation || 'Unassigned')}</div></td>
-<td><span class="method-badge ${methodClass}">${r.method || 'Unknown'}</span></td>
-<td><span class="action-badge ${actionClass}">${r.action || 'Unknown'}</span></td>
+<td><div style="color:#a855f7;">${escapeHtml(r.assignedLocation || 'Unassigned')}</div></td>
+<td><span class="method-badge ${methodClass}">${r.method}</span></td>
+<td><span class="action-badge ${actionClass}">${r.action}</span></td>
 <td>${locationHtml}</td>
 <td class="time">${time}</td>
 <td class="time">${timeAgo(r.timestamp)}</td>
 </tr>`;
 }).join('');
 }
-}
 
+// Listen for database changes
 signinsRef.on('value', snap => {
+console.log(' Received signins data');
 allRecords = [];
 snap.forEach(child => {
 const val = child.val();
 if(val) allRecords.push({ id: child.key, ...val });
 });
+console.log('Total records:', allRecords.length);
 render();
 });
 
 statusRef.on('value', snap => {
+console.log('📥 Received status data');
 statusData = {};
 snap.forEach(child => {
 statusData[child.key] = child.val();
@@ -274,35 +240,28 @@ render();
 
 function exportCSV() {
 const today = todayStart();
-const locFilter = document.getElementById('locationFilter').value;
-let data = allRecords.filter(r => r.timestamp && r.timestamp >= today);
-if (locFilter !== 'all') data = data.filter(r => r.assignedLocation === locFilter);
+const data = allRecords.filter(r => r.timestamp && r.timestamp >= today);
 
 if (data.length === 0) {
 alert('No records to export');
 return;
 }
 
-let csv = 'Date,Time,Name,Company,Assigned Location,Method,Action,GPS Address,Lat,Lng\n';
-data.sort((a, b) => a.timestamp - b.timestamp).forEach(r => {
-const date = new Date(r.timestamp).toISOString().split('T')[0];
-const time = new Date(r.timestamp).toLocaleTimeString();
-const loc = r.location ? r.location.address || `${r.location.lat},${r.location.lng}` : '';
-const lat = r.location ? r.location.lat : '';
-const lng = r.location ? r.location.lng : '';
-csv += `"${date}","${time}","${r.operativeName || ''}","${r.operativeCompany || ''}","${r.assignedLocation || ''}","${r.method || ''}","${r.action || ''}","${loc}","${lat}","${lng}"\n`;
+let csv = 'Date,Time,Name,Company,Location,Method,Action\n';
+data.forEach(r => {
+csv += `"${new Date(r.timestamp).toISOString().split('T')[0]}","${new Date(r.timestamp).toLocaleTimeString()}","${r.operativeName}","${r.operativeCompany}","${r.assignedLocation}","${r.method}","${r.action}"\n`;
 });
 
 const blob = new Blob([csv], { type: 'text/csv' });
 const url = URL.createObjectURL(blob);
 const a = document.createElement('a');
 a.href = url;
-a.download = `face-reader-${locFilter === 'all' ? 'all' : locFilter}-${new Date().toISOString().split('T')[0]}.csv`;
+a.download = `face-reader-${new Date().toISOString().split('T')[0]}.csv`;
 a.click();
 }
 
 async function clearToday() {
-if (!confirm('⚠️ Reset dashboard? This will delete today\'s records and reset the live status.')) return;
+if (!confirm('Delete all today\'s records?')) return;
 const today = todayStart();
 const updates = {};
 allRecords.forEach(r => {
@@ -310,17 +269,12 @@ if (r.timestamp && r.timestamp >= today) {
 updates['signins/' + r.id] = null;
 }
 });
-updates['status'] = null;
-try {
 await db.ref().update(updates);
-alert('✅ Dashboard reset successfully!');
+alert('Cleared!');
 location.reload();
-} catch (err) {
-alert('Error clearing: ' + err.message);
-}
 }
 
-render();
+console.log('🚀 Office dashboard loaded');
 </script>
 </body>
 </html>
