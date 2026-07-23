@@ -7,13 +7,16 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <style>
-:root { --primary-color: #06b6d4; }
+:root { --primary-color: #06b6d4; --secondary-color: #10b981; }
 * { box-sizing: border-box; }
 body { background:#020617; color:#fff; font-family:Arial,sans-serif; margin:0; padding:20px; }
 .container { max-width:800px; margin:0 auto; }
-header { text-align:center; padding:20px 0; border-bottom:1px solid #1e293b; margin-bottom:20px; }
-.logo { font-size:28px; font-weight:800; color: var(--primary-color); }
-.badge { background:#4f46e5; padding:5px 10px; border-radius:15px; font-size:12px; display:inline-block; margin-top:10px;}
+header { text-align:center; padding:20px 0; border-bottom:1px solid #1e293b; margin-bottom:20px; display: flex; flex-direction: column; align-items: center; }
+.logo-container { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; }
+.logo { font-size:24px; font-weight:800; color: var(--primary-color); display: flex; align-items: center; }
+.logo img { max-height: 50px; width: auto; }
+.system-name { font-size: 20px; font-weight: 700; color: #fff; }
+.badge { background:#4f46e5; padding:5px 10px; border-radius:15px; font-size:12px; display:inline-block;}
 .card { background:#1e293b; padding:20px; border-radius:10px; margin-bottom:20px; }
 input, select { width:100%; padding:12px; margin:8px 0; border-radius:5px; border:1px solid #334155; background:#0f172a; color:#fff; }
 button { padding:12px 20px; border-radius:5px; border:none; font-weight:700; cursor:pointer; color:#fff; margin-right:10px; }
@@ -21,7 +24,7 @@ button { padding:12px 20px; border-radius:5px; border:none; font-weight:700; cur
 .btn-cancel { background:#64748b; }
 .btn-edit { background:#0891b2; padding:8px 12px; font-size:12px; }
 .btn-delete { background:#dc2626; padding:8px 12px; font-size:12px; }
-.btn-register { display:block; width:100%; background:#10b981; padding:15px; text-align:center; text-decoration:none; color:white; font-weight:700; border-radius:10px; margin-bottom:20px; }
+.btn-register { display:block; width:100%; background: linear-gradient(135deg, var(--secondary-color), #059669); padding:15px; text-align:center; text-decoration:none; color:white; font-weight:700; border-radius:10px; margin-bottom:20px; }
 .operative-item { background:#0f172a; padding:15px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
 .name { font-weight:700; font-size:16px; }
 .details { font-size:12px; color:#94a3b8; margin-top:5px; }
@@ -38,8 +41,11 @@ button { padding:12px 20px; border-radius:5px; border:none; font-weight:700; cur
 <body>
 <div class="container">
 <header>
-<div class="logo" id="brandLogo">FACE READER</div>
-<div class="badge">Admin Dashboard</div>
+  <div class="logo-container">
+    <div class="logo" id="brandLogo"></div>
+    <div class="system-name" id="brandSystemName"></div>
+  </div>
+  <div class="badge">Admin Dashboard</div>
 </header>
 
 <a href="index.html" class="btn-register">Go to Face Registration Page</a>
@@ -63,7 +69,6 @@ button { padding:12px 20px; border-radius:5px; border:none; font-weight:700; cur
 
 <div class="card">
 <h2>Registered Operatives (<span id="count">0</span>)</h2>
-<!-- LOCATION FILTER FOR SITE MANAGERS -->
 <div class="filter-container">
   <label>Filter by Location:</label>
   <select id="adminLocationFilter" onchange="render()">
@@ -165,19 +170,10 @@ async function deleteOperative(id) {
 function render() {
   const list = Object.entries(operatives).map(([id, o]) => ({ id, ...o }));
   const locFilter = document.getElementById('adminLocationFilter').value;
-  
   let filteredList = list;
-  if (locFilter !== 'all') {
-    filteredList = list.filter(o => o.location === locFilter);
-  }
-
+  if (locFilter !== 'all') filteredList = list.filter(o => o.location === locFilter);
   document.getElementById('count').textContent = filteredList.length;
-
-  if (filteredList.length === 0) {
-    listEl.innerHTML = '<p style="text-align:center; color:#64748b;">No operatives found for this location.</p>';
-    return;
-  }
-
+  if (filteredList.length === 0) { listEl.innerHTML = '<p style="text-align:center; color:#64748b;">No operatives found.</p>'; return; }
   filteredList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   listEl.innerHTML = filteredList.map(o => `
     <div class="operative-item">
@@ -202,7 +198,6 @@ function updateAdminLocationDropdown() {
   const currentVal = select.value;
   const locations = new Set(['all']);
   Object.values(operatives).forEach(o => { if(o.location) locations.add(o.location); });
-  
   select.innerHTML = '';
   Array.from(locations).sort().forEach(loc => {
     const opt = document.createElement('option');
@@ -214,15 +209,21 @@ function updateAdminLocationDropdown() {
   else select.value = 'all';
 }
 
-// --- BRANDING LISTENER ---
+// --- BRANDING LISTENER (LISTENS TO THE BRAIN) ---
 function applyBranding(data) {
   if (!data) return;
   document.documentElement.style.setProperty('--primary-color', data.color || '#06b6d4');
+  document.documentElement.style.setProperty('--secondary-color', data.color2 || '#10b981');
+  
   const logoEl = document.getElementById('brandLogo');
+  const nameEl = document.getElementById('brandSystemName');
+  
   if (logoEl) {
-    if (data.logoUrl) logoEl.innerHTML = `<img src="${data.logoUrl}" style="max-height:40px;">`;
-    else { logoEl.textContent = data.name || 'FACE READER'; logoEl.style.color = data.color || '#06b6d4'; }
+    if (data.logoUrl) logoEl.innerHTML = `<img src="${data.logoUrl}">`;
+    else { logoEl.textContent = data.name || 'FACE READER'; logoEl.style.color = data.color; }
   }
+  if (nameEl) nameEl.textContent = data.name || '';
+  
   const footerEl = document.getElementById('brandFooterText');
   if (footerEl) footerEl.textContent = data.footer || 'Face Reader Basic © 2026';
 }
