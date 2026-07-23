@@ -6,7 +6,6 @@
 <title>Face Reader - Office Dashboard</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root { --primary-color: #06b6d4; --secondary-color: #10b981; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -20,88 +19,6 @@ header { display:flex; justify-content:space-between; align-items:center; paddin
 .num { font-size:56px; font-weight:900; margin-bottom:10px; }
 .green { color:#10b981; } .blue { color:#06b6d4; } .amber { color:#f97316; } .purple { color:#a855f7; }
 .label { font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:2px; }
-.card { background: rgba(30, 41, 59, 0.8); padding:30px; border-radius:20px; margin-bottom:25px; }
-.controls { display:flex; gap:15px; margin-bottom:25px; flex-wrap:wrap; align-items: center; }
-.info-panel { flex:1; display:flex; gap:20px; background: rgba(15, 23, 42, 0.6); padding: 14px 18px; border-radius:12px; border:2px solid rgba(255,255,255,0.1); align-items: center; font-size: 14px; color: #94a3b8; min-width: 300px; }
-.info-panel strong { color: #fff; font-weight: 600; }
-select { padding:14px 18px; border-radius:12px; border:2px solid rgba(255,255,255,0.1); background: rgba(15, 23, 42, 0.6); color:#fff; font-size:15px; min-width: 200px; cursor: pointer; }
-select:focus { outline: none; border-color: var(--primary-color); }
-button { padding:14px 24px; border-radius:12px; border:none; font-weight:700; cursor:pointer; color:#fff; }
-.btn-refresh { background: linear-gradient(135deg, #6366f1, #4f46e5); }
-.btn-export { background: linear-gradient(135deg, #06b6d4, #0891b2); }
-.btn-clear { background: linear-gradient(135deg, #ef4444, #dc2626); }
-.btn-report { background: linear-gradient(135deg, var(--secondary-color), #059669); }
-table { width:100%; border-collapse: collapse; }
-th { background: rgba(15, 23, 42, 0.9); padding:16px; text-align:left; font-size:12px; color:#94a3b8; text-transform:uppercase; font-weight:700; border-bottom: 2px solid var(--primary-color); white-space: nowrap; }
-td { padding:16px; border-bottom:1px solid rgba(255,255,255,0.05); vertical-align: top; }
-tr:hover { background: rgba(255,255,255,0.03); }
-.operative-name { font-weight:700; font-size:15px; color:#fff; }
-.location-text { color:#a855f7; font-size:13px; }
-.method-badge, .action-badge { padding:6px 12px; border-radius:15px; font-size:11px; font-weight:700; display: inline-block; }
-.face { background: rgba(6, 182, 212, 0.2); color:#22d3ee; }
-.qr { background: rgba(140, 142, 144, 0.2); color:#8C8E90; }
-.in { background: rgba(16, 185, 129, 0.2); color:#34d399; }
-.out { background: rgba(249, 115, 22, 0.2); color:#fbbf24; }
-.time { color:#94a3b8; font-family:'Courier New', monospace; font-size:13px; }
-.gps-info { font-size:11px; color:#a5b4fc; }
-.map-link { color:var(--primary-color); text-decoration:none; font-size:11px; margin-left:5px; }
-.empty { text-align:center; color:#64748b; padding:50px; font-size:16px; }
-.footer { text-align:center; font-size:12px; color:#8C8E90; margin-top:40px; padding:25px 0; border-top: 1px solid rgba(255,255,255,0.1); }
-
-/* Branding Panel Styles */
-.branding-card { background: rgba(15, 23, 42, 0.8); border: 2px solid var(--primary-color); }
-.branding-card h2 { color: var(--primary-color); }
-.branding-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-.branding-inputs input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: #0f172a; color: #fff; }
-.branding-inputs input[type="color"] { height: 45px; padding: 5px; cursor: pointer; }
-.branding-inputs input[type="file"] { padding: 10px; font-size: 14px; }
-.btn-save-brand { background: var(--primary-color); width: 100%; padding: 15px; font-size: 16px; }
-
-/* Date Range Modal Styles */
-.modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
-.modal-content { background: #1e293b; padding: 30px; border-radius: 15px; max-width: 400px; width: 90%; border: 2px solid var(--primary-color); text-align: center; }
-.modal-content h3 { color: #fff; margin-bottom: 20px; }
-.date-inputs { display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px; text-align: left; }
-.date-inputs label { color: #94a3b8; font-size: 12px; margin-bottom: 5px; display: block; }
-.date-inputs input[type="date"] { width: 100%; padding: 12px; border-radius: 8px; border: 2px solid rgba(255,255,255,0.1); background: #0f172a; color: #fff; }
-.modal-buttons { display: flex; gap: 10px; justify-content: center; }
-.modal-buttons button { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; }
-.btn-confirm { background: var(--primary-color); color: #fff; }
-.btn-cancel { background: #64748b; color: #fff; }
-
-/* Report Modal Styles */
-.report-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 1000; overflow-y: auto; }
-.report-content { background: #fff; color: #000; max-width: 800px; margin: 20px auto; padding: 30px; border-radius: 10px; }
-.report-header { text-align: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 3px solid var(--primary-color); }
-.report-header h1 { color: #0f172a; font-size: 28px; margin-bottom: 5px; }
-.report-header p { color: #64748b; font-size: 13px; }
-.report-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 30px; }
-.report-stat { background: #f1f5f9; padding: 15px; border-radius: 8px; text-align: center; }
-.report-stat h3 { font-size: 32px; margin-bottom: 3px; }
-.report-stat p { color: #64748b; font-size: 10px; text-transform: uppercase; }
-.charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 30px; }
-.chart-container { background: #f8fafc; padding: 15px; border-radius: 8px; }
-.chart-container h3 { color: #0f172a; margin-bottom: 10px; text-align: center; font-size: 14px; }
-.chart-container canvas { max-height: 200px; }
-.report-table { width: 100%; margin-top: 20px; font-size: 11px; }
-.report-table th { background: #0f172a; color: #fff; padding: 8px; text-align: left; font-size: 10px; }
-.report-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; font-size: 10px; }
-.report-actions { text-align: center; margin-top: 30px; }
-.report-actions button { margin: 0 10px; padding: 12px 30px; font-size: 16px; }
-.btn-print { background: var(--primary-color); }
-.btn-close { background: #64748b; }
-
-@media print {
-  @page { size: A4; margin: 10mm; }
-  body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .report-modal { background: #fff; position: static; overflow: visible; }
-  .report-content { margin: 0; padding: 0; max-width: 100%; box-shadow: none; }
-  .report-actions, .modal-overlay { display: none !important; }
-  .report-header h1 { font-size: 24px; }
-  .charts-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; page-break-inside: avoid; }
-  .chart-container { padding: 10px; page-break-inside: avoid; }
-  .chart-container canvas { max-height: 180px; }
-}
 </style>
 </head>
 <body>
@@ -112,4 +29,32 @@ tr:hover { background: rgba(255,255,255,0.03); }
 </header>
 
 <div class="stats">
-<div class="stat"><div class="num green" id="onsite">0</div><div class="label">Currently
+<div class="stat"><div class="num green" id="onsite">0</div><div class="label">Currently On Site</div></div>
+<div class="stat"><div class="num blue" id="total">0</div><div class="label">Total Sign-Ins Today</div></div>
+<div class="stat"><div class="num amber" id="recent">0</div><div class="label">Last 15 Minutes</div></div>
+<div class="stat"><div class="num purple" id="unique">0</div><div class="label">Unique Operatives</div></div>
+</div>
+
+<p style="text-align:center; color:#94a3b8; margin-top:50px;">Dashboard loaded successfully! Check console for details.</p>
+
+<div class="footer" id="brandFooterText" style="text-align:center; margin-top:50px; color:#475569;">Face Reader Basic - We are a team together Ltd ©️ 2026</div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyB1m4mgU_r71POdSD8vxzIq2BrSk7K0M-o",
+  authDomain: "face-reader-basic.firebaseapp.com",
+  databaseURL: "https://face-reader-basic-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "face-reader-basic",
+  storageBucket: "face-reader-basic.firebasestorage.app",
+  messagingSenderId: "645270939984",
+  appId: "1:645270939984:web:aa43a6522527a83941e455"
+};
+
+console.log('🚀 Initializing Firebase...');
+firebase.initializeApp(firebaseConfig);
+console.log('✅ Firebase initialized!');
+
+const db = firebase.database();
+const signinsRef = db.ref('signins');
+const statusRef = db.ref('status');
