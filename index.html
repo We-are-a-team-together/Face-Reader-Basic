@@ -8,28 +8,31 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <style>
+:root { --primary-color: #06b6d4; }
 * { box-sizing: border-box; }
 body { background:#020617; color:#fff; font-family:Arial,sans-serif; margin:0; padding:20px; }
 .container { max-width:600px; margin:0 auto; }
 header { text-align:center; padding:20px 0; border-bottom:1px solid #1e293b; margin-bottom:20px; }
-.logo { font-size:28px; font-weight:800; color: #06b6d4; }
+.logo { font-size:28px; font-weight:800; color: var(--primary-color); }
 .card { background:#1e293b; padding:20px; border-radius:10px; margin-bottom:20px; }
+h2 { margin-top: 0; color: #fff; font-size: 20px; margin-bottom: 15px; }
 input { width:100%; padding:12px; margin:8px 0; border-radius:5px; border:1px solid #334155; background:#0f172a; color:#fff; }
-button { width:100%; padding:14px; margin:10px 0; border-radius:5px; border:none; font-weight:700; cursor:pointer; color:#fff; }
-.btn-camera { background:#0891b2; }
+input:focus { outline: none; border-color: var(--primary-color); }
+button { width:100%; padding:14px; margin:10px 0; border-radius:5px; border:none; font-weight:700; cursor:pointer; color:#fff; font-size: 16px; }
+.btn-camera { background: var(--primary-color); color: #000; }
 .btn-capture { background:#10b981; display:none; }
-.status { padding:12px; border-radius:5px; text-align:center; margin-bottom:15px; }
+.status { padding:12px; border-radius:5px; text-align:center; margin-bottom:15px; font-weight: 600; }
 .status-loading { background:#1e3a8a; color:#93c5fd; }
 .status-success { background:#064e3b; color:#6ee7b7; }
 .status-error { background:#7f1d1d; color:#fca5a5; }
-#video { width:100%; border-radius:10px; display:none; margin-top:10px; }
+#video { width:100%; border-radius:10px; display:none; margin-top:10px; border: 2px solid var(--primary-color); }
 .footer { text-align:center; font-size:11px; color:#475569; margin-top:20px; }
 </style>
 </head>
 <body>
 <div class="container">
 <header>
-<div class="logo">FACE READER</div>
+<div class="logo" id="brandLogo">FACE READER</div>
 </header>
 
 <div id="status" class="status status-loading">Loading models...</div>
@@ -38,7 +41,7 @@ button { width:100%; padding:14px; margin:10px 0; border-radius:5px; border:none
 <h2>Register Operative Face</h2>
 <input type="text" id="name" placeholder="Full Name" required>
 <input type="text" id="company" placeholder="Company / Employer" required>
-<input type="text" id="location" placeholder="Assigned Location" required>
+<input type="text" id="location" placeholder="Assigned Location (e.g., Netherworld)" required>
 <input type="text" id="role" placeholder="Role / Job Title">
 <input type="text" id="qrCode" placeholder="QR Code ID (Optional)">
 
@@ -51,18 +54,18 @@ Capture Face
 </button>
 </div>
 
-<div class="footer">Face Reader Basic - We are a team together Ltd ©️ 2026</div>
+<div class="footer" id="brandFooter">Face Reader Basic - We are a team together Ltd ©️ 2026</div>
 </div>
 
 <script>
 const firebaseConfig = {
-apiKey: "AIzaSyB1m4mgU_r71POdSD8vxzIq2BrSk7K0M-o",
-authDomain: "face-reader-basic.firebaseapp.com",
-databaseURL: "https://face-reader-basic-default-rtdb.europe-west1.firebasedatabase.app",
-projectId: "face-reader-basic",
-storageBucket: "face-reader-basic.firebasestorage.app",
-messagingSenderId: "645270939984",
-appId: "1:645270939984:web:aa43a6522527a83941e455"
+  apiKey: "AIzaSyB1m4mgU_r71POdSD8vxzIq2BrSk7K0M-o",
+  authDomain: "face-reader-basic.firebaseapp.com",
+  databaseURL: "https://face-reader-basic-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "face-reader-basic",
+  storageBucket: "face-reader-basic.firebasestorage.app",
+  messagingSenderId: "645270939984",
+  appId: "1:645270939984:web:aa43a6522527a83941e455"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -73,83 +76,99 @@ const faceDescriptorsRef = db.ref('faceDescriptors');
 let videoStream = null;
 
 async function loadModels() {
-try {
-const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model';
-await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
-document.getElementById('status').className = 'status status-success';
-document.getElementById('status').textContent = 'Ready! Click Open Camera';
-document.getElementById('btnCamera').disabled = false;
-} catch (err) {
-console.error('Model loading error:', err);
-document.getElementById('status').className = 'status status-error';
-document.getElementById('status').textContent = 'Error loading models. Refresh page.';
-}
+  try {
+    const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model';
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+    document.getElementById('status').className = 'status status-success';
+    document.getElementById('status').textContent = 'Ready! Click Open Camera';
+    document.getElementById('btnCamera').disabled = false;
+  } catch (err) {
+    console.error('Model loading error:', err);
+    document.getElementById('status').className = 'status status-error';
+    document.getElementById('status').textContent = 'Error loading models. Refresh page.';
+  }
 }
 
 async function startCamera() {
-const name = document.getElementById('name').value.trim();
-const company = document.getElementById('company').value.trim();
-const location = document.getElementById('location').value.trim();
-if (!name || !company || !location) {
-alert('Please fill in Name, Company, and Assigned Location');
-return;
-}
+  const name = document.getElementById('name').value.trim();
+  const company = document.getElementById('company').value.trim();
+  const location = document.getElementById('location').value.trim();
+  if (!name || !company || !location) { 
+    alert('Please fill in Name, Company, and Assigned Location'); 
+    return; 
+  }
 
-try {
-videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-const video = document.getElementById('video');
-video.srcObject = videoStream;
-video.style.display = 'block';
-document.getElementById('btnCamera').style.display = 'none';
-document.getElementById('btnCapture').style.display = 'block';
-document.getElementById('status').textContent = 'Position face and click Capture';
-} catch (err) {
-alert('Camera access denied. Please allow camera access and try again.');
-}
+  try {
+    videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+    const video = document.getElementById('video');
+    video.srcObject = videoStream;
+    video.style.display = 'block';
+    document.getElementById('btnCamera').style.display = 'none';
+    document.getElementById('btnCapture').style.display = 'block';
+    document.getElementById('status').textContent = 'Position face and click Capture';
+  } catch (err) {
+    alert('Camera access denied. Please allow camera access and try again.');
+  }
 }
 
 async function captureFace() {
-const video = document.getElementById('video');
-const name = document.getElementById('name').value.trim();
-const company = document.getElementById('company').value.trim();
-const location = document.getElementById('location').value.trim();
-const role = document.getElementById('role').value.trim();
-const qrCode = document.getElementById('qrCode').value.trim();
+  const video = document.getElementById('video');
+  const name = document.getElementById('name').value.trim();
+  const company = document.getElementById('company').value.trim();
+  const location = document.getElementById('location').value.trim();
+  const role = document.getElementById('role').value.trim();
+  const qrCode = document.getElementById('qrCode').value.trim();
 
-try {
-const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+  try {
+    // EXACT PROVEN FACE RECOGNITION LINE
+    const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
 
-if (!detection) {
-document.getElementById('status').className = 'status status-error';
-document.getElementById('status').textContent = 'No face detected!';
-return;
+    if (!detection) {
+      document.getElementById('status').className = 'status status-error';
+      document.getElementById('status').textContent = 'No face detected!';
+      return;
+    }
+
+    const faceDescriptor = Array.from(detection.descriptor);
+    const newRef = operativesRef.push();
+    const id = newRef.key;
+
+    await newRef.set({ name, company, location, role, qrCode, createdAt: firebase.database.ServerValue.TIMESTAMP });
+    await faceDescriptorsRef.child(id).set({ descriptor: faceDescriptor, name, company, location });
+
+    videoStream.getTracks().forEach(t => t.stop());
+    document.getElementById('status').className = 'status status-success';
+    document.getElementById('status').textContent = 'Registered: ' + name;
+    document.getElementById('video').style.display = 'none';
+    document.getElementById('btnCamera').style.display = 'block';
+    document.getElementById('btnCapture').style.display = 'none';
+    document.getElementById('name').value = '';
+    document.getElementById('company').value = '';
+    document.getElementById('location').value = '';
+    document.getElementById('role').value = '';
+    document.getElementById('qrCode').value = '';
+  } catch (err) {
+    document.getElementById('status').className = 'status status-error';
+    document.getElementById('status').textContent = 'Error: ' + err.message;
+  }
 }
 
-const faceDescriptor = Array.from(detection.descriptor);
-const newRef = operativesRef.push();
-const id = newRef.key;
-
-await newRef.set({ name, company, location, role, qrCode, createdAt: firebase.database.ServerValue.TIMESTAMP });
-await faceDescriptorsRef.child(id).set({ descriptor: faceDescriptor, name, company, location });
-
-videoStream.getTracks().forEach(t => t.stop());
-document.getElementById('status').className = 'status status-success';
-document.getElementById('status').textContent = 'Registered: ' + name;
-document.getElementById('video').style.display = 'none';
-document.getElementById('btnCamera').style.display = 'block';
-document.getElementById('btnCapture').style.display = 'none';
-document.getElementById('name').value = '';
-document.getElementById('company').value = '';
-document.getElementById('location').value = '';
-document.getElementById('role').value = '';
-document.getElementById('qrCode').value = '';
-} catch (err) {
-document.getElementById('status').className = 'status status-error';
-document.getElementById('status').textContent = 'Error: ' + err.message;
-}
-}
+// --- BRANDING LISTENER ---
+const settingsRef = firebase.database().ref('settings/branding');
+settingsRef.on('value', snap => {
+  const data = snap.val();
+  if (!data) return;
+  document.documentElement.style.setProperty('--primary-color', data.color || '#06b6d4');
+  const logoEl = document.getElementById('brandLogo');
+  if (logoEl) {
+    if (data.logoUrl) logoEl.innerHTML = `<img src="${data.logoUrl}" style="max-height:40px;">`;
+    else { logoEl.textContent = data.name || 'FACE READER'; logoEl.style.color = data.color || '#06b6d4'; }
+  }
+  const footerEl = document.getElementById('brandFooter');
+  if (footerEl) footerEl.textContent = data.footer || 'Face Reader Basic © 2026';
+});
 
 loadModels();
 </script>
