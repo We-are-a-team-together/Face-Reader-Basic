@@ -7,14 +7,15 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <style>
+:root { --primary-color: #06b6d4; }
 * { box-sizing: border-box; }
 body { background:#020617; color:#fff; font-family:Arial,sans-serif; margin:0; padding:20px; }
 .container { max-width:800px; margin:0 auto; }
 header { text-align:center; padding:20px 0; border-bottom:1px solid #1e293b; margin-bottom:20px; }
-.logo { font-size:28px; font-weight:800; color: #06b6d4; }
+.logo { font-size:28px; font-weight:800; color: var(--primary-color); }
 .badge { background:#4f46e5; padding:5px 10px; border-radius:15px; font-size:12px; display:inline-block; margin-top:10px;}
 .card { background:#1e293b; padding:20px; border-radius:10px; margin-bottom:20px; }
-input { width:100%; padding:12px; margin:8px 0; border-radius:5px; border:1px solid #334155; background:#0f172a; color:#fff; }
+input, select { width:100%; padding:12px; margin:8px 0; border-radius:5px; border:1px solid #334155; background:#0f172a; color:#fff; }
 button { padding:12px 20px; border-radius:5px; border:none; font-weight:700; cursor:pointer; color:#fff; margin-right:10px; }
 .btn-save { background:#4f46e5; }
 .btn-cancel { background:#64748b; }
@@ -24,23 +25,24 @@ button { padding:12px 20px; border-radius:5px; border:none; font-weight:700; cur
 .operative-item { background:#0f172a; padding:15px; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
 .name { font-weight:700; font-size:16px; }
 .details { font-size:12px; color:#94a3b8; margin-top:5px; }
-.company { color:#06b6d4; font-weight:600; }
+.company { color:var(--primary-color); font-weight:600; }
 .location { color:#a855f7; font-weight:600; }
 .status-msg { padding:12px; border-radius:5px; text-align:center; margin-bottom:15px; display:none; }
 .success { background:#064e3b; color:#6ee7b7; display:block; }
 .error { background:#7f1d1d; color:#fca5a5; display:block; }
 .footer { text-align:center; font-size:11px; color:#475569; margin-top:20px; }
+.filter-container { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; }
+.filter-container label { color: #94a3b8; font-size: 14px; white-space: nowrap; }
 </style>
 </head>
 <body>
 <div class="container">
 <header>
-<div class="logo">FACE READER</div>
+<div class="logo" id="brandLogo">FACE READER</div>
 <div class="badge">Admin Dashboard</div>
 </header>
 
 <a href="index.html" class="btn-register">Go to Face Registration Page</a>
-
 <div id="statusMsg" class="status-msg"></div>
 
 <div class="card">
@@ -49,7 +51,7 @@ button { padding:12px 20px; border-radius:5px; border:none; font-weight:700; cur
 <input type="hidden" id="operativeId">
 <input type="text" id="name" placeholder="Full Name" required>
 <input type="text" id="company" placeholder="Company / Employer" required>
-<input type="text" id="location" placeholder="Assigned Location" required>
+<input type="text" id="location" placeholder="Assigned Location (e.g., Netherworld)" required>
 <input type="text" id="role" placeholder="Role / Job Title">
 <input type="text" id="qrCode" placeholder="QR Code ID (Optional)">
 <div style="margin-top:10px;">
@@ -61,27 +63,35 @@ button { padding:12px 20px; border-radius:5px; border:none; font-weight:700; cur
 
 <div class="card">
 <h2>Registered Operatives (<span id="count">0</span>)</h2>
+<!-- LOCATION FILTER FOR SITE MANAGERS -->
+<div class="filter-container">
+  <label>Filter by Location:</label>
+  <select id="adminLocationFilter" onchange="render()">
+    <option value="all">All Locations</option>
+  </select>
+</div>
 <div id="operativeList">Loading...</div>
 </div>
 
-<div class="footer">Face Reader Basic - We are a team together Ltd ©️ 2026</div>
+<div class="footer" id="brandFooterText">Face Reader Basic - We are a team together Ltd ©️ 2026</div>
 </div>
 
 <script>
 const firebaseConfig = {
-apiKey: "AIzaSyB1m4mgU_r71POdSD8vxzIq2BrSk7K0M-o",
-authDomain: "face-reader-basic.firebaseapp.com",
-databaseURL: "https://face-reader-basic-default-rtdb.europe-west1.firebasedatabase.app",
-projectId: "face-reader-basic",
-storageBucket: "face-reader-basic.firebasestorage.app",
-messagingSenderId: "645270939984",
-appId: "1:645270939984:web:aa43a6522527a83941e455"
+  apiKey: "AIzaSyB1m4mgU_r71POdSD8vxzIq2BrSk7K0M-o",
+  authDomain: "face-reader-basic.firebaseapp.com",
+  databaseURL: "https://face-reader-basic-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "face-reader-basic",
+  storageBucket: "face-reader-basic.firebasestorage.app",
+  messagingSenderId: "645270939984",
+  appId: "1:645270939984:web:aa43a6522527a83941e455"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const operativesRef = db.ref('users');
 const faceDescriptorsRef = db.ref('faceDescriptors');
+const settingsRef = db.ref('settings/branding');
 
 let operatives = {};
 const form = document.getElementById('operativeForm');
@@ -89,102 +99,140 @@ const listEl = document.getElementById('operativeList');
 const statusMsg = document.getElementById('statusMsg');
 
 function showStatus(msg, type) {
-statusMsg.textContent = msg;
-statusMsg.className = 'status-msg ' + type;
-statusMsg.style.display = 'block';
-
-setTimeout(() => { statusMsg.style.display = 'none'; }, 3000);
+  statusMsg.textContent = msg;
+  statusMsg.className = 'status-msg ' + type;
+  statusMsg.style.display = 'block';
+  setTimeout(() => { statusMsg.style.display = 'none'; }, 3000);
 }
 
 function resetForm() {
-form.reset();
-document.getElementById('operativeId').value = '';
-document.getElementById('formTitle').textContent = 'Add / Edit Operative';
+  form.reset();
+  document.getElementById('operativeId').value = '';
+  document.getElementById('formTitle').textContent = 'Add / Edit Operative';
 }
 
 form.addEventListener('submit', async (e) => {
-e.preventDefault();
-const id = document.getElementById('operativeId').value;
-const data = {
-name: document.getElementById('name').value.trim(),
-company: document.getElementById('company').value.trim(),
-location: document.getElementById('location').value.trim(),
-role: document.getElementById('role').value.trim(),
-qrCode: document.getElementById('qrCode').value.trim(),
-updatedAt: firebase.database.ServerValue.TIMESTAMP
-};
+  e.preventDefault();
+  const id = document.getElementById('operativeId').value;
+  const data = {
+    name: document.getElementById('name').value.trim(),
+    company: document.getElementById('company').value.trim(),
+    location: document.getElementById('location').value.trim(),
+    role: document.getElementById('role').value.trim(),
+    qrCode: document.getElementById('qrCode').value.trim(),
+    updatedAt: firebase.database.ServerValue.TIMESTAMP
+  };
 
-try {
-if (id) {
-await operativesRef.child(id).update(data);
-await faceDescriptorsRef.child(id).update({ name: data.name, company: data.company, location: data.location });
-showStatus('Updated successfully', 'success');
-} else {
-data.createdAt = firebase.database.ServerValue.TIMESTAMP;
-await operativesRef.push(data);
-showStatus('Added successfully! Use Face Registration to capture face.', 'success');
-}
-resetForm();
-} catch (err) {
-showStatus('Error: ' + err.message, 'error');
-}
+  try {
+    if (id) {
+      await operativesRef.child(id).update(data);
+      await faceDescriptorsRef.child(id).update({ name: data.name, company: data.company, location: data.location });
+      showStatus('Updated successfully', 'success');
+    } else {
+      data.createdAt = firebase.database.ServerValue.TIMESTAMP;
+      await operativesRef.push(data);
+      showStatus('Added successfully! Use Face Registration to capture face.', 'success');
+    }
+    resetForm();
+  } catch (err) {
+    showStatus('Error: ' + err.message, 'error');
+  }
 });
 
 function editOperative(id) {
-const o = operatives[id];
-document.getElementById('operativeId').value = id;
-document.getElementById('name').value = o.name || '';
-document.getElementById('company').value = o.company || '';
-document.getElementById('location').value = o.location || '';
-document.getElementById('role').value = o.role || '';
-document.getElementById('qrCode').value = o.qrCode || '';
-document.getElementById('formTitle').textContent = 'Edit: ' + o.name;
-window.scrollTo(0, 0);
+  const o = operatives[id];
+  document.getElementById('operativeId').value = id;
+  document.getElementById('name').value = o.name || '';
+  document.getElementById('company').value = o.company || '';
+  document.getElementById('location').value = o.location || '';
+  document.getElementById('role').value = o.role || '';
+  document.getElementById('qrCode').value = o.qrCode || '';
+  document.getElementById('formTitle').textContent = 'Edit: ' + o.name;
+  window.scrollTo(0, 0);
 }
 
 async function deleteOperative(id) {
-if (!confirm('Delete this operative and their face data?')) return;
-try {
-await operativesRef.child(id).remove();
-await faceDescriptorsRef.child(id).remove();
-showStatus('Deleted successfully', 'success');
-} catch (err) {
-showStatus('Error: ' + err.message, 'error');
-}
+  if (!confirm('Delete this operative and their face data?')) return;
+  try {
+    await operativesRef.child(id).remove();
+    await faceDescriptorsRef.child(id).remove();
+    showStatus('Deleted successfully', 'success');
+  } catch (err) {
+    showStatus('Error: ' + err.message, 'error');
+  }
 }
 
 function render() {
-const list = Object.entries(operatives).map(([id, o]) => ({ id, ...o }));
-document.getElementById('count').textContent = list.length;
+  const list = Object.entries(operatives).map(([id, o]) => ({ id, ...o }));
+  const locFilter = document.getElementById('adminLocationFilter').value;
+  
+  let filteredList = list;
+  if (locFilter !== 'all') {
+    filteredList = list.filter(o => o.location === locFilter);
+  }
 
-if (list.length === 0) {
-listEl.innerHTML = '<p style="text-align:center; color:#64748b;">No operatives registered yet.</p>';
-return;
+  document.getElementById('count').textContent = filteredList.length;
+
+  if (filteredList.length === 0) {
+    listEl.innerHTML = '<p style="text-align:center; color:#64748b;">No operatives found for this location.</p>';
+    return;
+  }
+
+  filteredList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  listEl.innerHTML = filteredList.map(o => `
+    <div class="operative-item">
+      <div>
+        <div class="name">${o.name || 'Unnamed'}</div>
+        <div class="details">
+          <span class="location">📍 ${o.location || 'No location'}</span><br>
+          <span class="company">${o.company || ''}</span> &middot; ${o.role || 'No role'}
+          ${o.qrCode ? '<br>QR: ' + o.qrCode : ''}
+        </div>
+      </div>
+      <div>
+        <button class="btn-edit" onclick="editOperative('${o.id}')">Edit</button>
+        <button class="btn-delete" onclick="deleteOperative('${o.id}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
 }
 
-list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-listEl.innerHTML = list.map(o => `
-<div class="operative-item">
-<div>
-<div class="name">${o.name || 'Unnamed'}</div>
-<div class="details">
-<span class="location"> ${o.location || 'No location'}</span><br>
-<span class="company">${o.company || ''}</span> &middot; ${o.role || 'No role'}
-${o.qrCode ? '<br>QR: ' + o.qrCode : ''}
-</div>
-</div>
-<div>
-<button class="btn-edit" onclick="editOperative('${o.id}')">Edit</button>
-<button class="btn-delete" onclick="deleteOperative('${o.id}')">Delete</button>
-</div>
-</div>
-`).join('');
+function updateAdminLocationDropdown() {
+  const select = document.getElementById('adminLocationFilter');
+  const currentVal = select.value;
+  const locations = new Set(['all']);
+  Object.values(operatives).forEach(o => { if(o.location) locations.add(o.location); });
+  
+  select.innerHTML = '';
+  Array.from(locations).sort().forEach(loc => {
+    const opt = document.createElement('option');
+    opt.value = loc;
+    opt.textContent = loc === 'all' ? 'All Locations' : loc;
+    select.appendChild(opt);
+  });
+  if (locations.has(currentVal)) select.value = currentVal;
+  else select.value = 'all';
 }
+
+// --- BRANDING LISTENER ---
+function applyBranding(data) {
+  if (!data) return;
+  document.documentElement.style.setProperty('--primary-color', data.color || '#06b6d4');
+  const logoEl = document.getElementById('brandLogo');
+  if (logoEl) {
+    if (data.logoUrl) logoEl.innerHTML = `<img src="${data.logoUrl}" style="max-height:40px;">`;
+    else { logoEl.textContent = data.name || 'FACE READER'; logoEl.style.color = data.color || '#06b6d4'; }
+  }
+  const footerEl = document.getElementById('brandFooterText');
+  if (footerEl) footerEl.textContent = data.footer || 'Face Reader Basic © 2026';
+}
+settingsRef.on('value', snap => applyBranding(snap.val()));
 
 operativesRef.on('value', snap => {
-operatives = {};
-snap.forEach(child => { operatives[child.key] = child.val(); });
-render();
+  operatives = {};
+  snap.forEach(child => { operatives[child.key] = child.val(); });
+  updateAdminLocationDropdown();
+  render();
 });
 </script>
 </body>
